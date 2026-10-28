@@ -1,0 +1,51 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor",
+  "elements": [
+    {
+      "id": "DW7dhXYbkWaSsFV4LJ2Nd",
+      "type": "text",
+      "x": 520.9573607524,
+      "y": 311.00152283027137,
+      "width": 602.61962890625,
+      "height": 375,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "index": "a0",
+      "roundness": null,
+      "seed": 1455630939,
+      "version": 363,
+      "versionNonce": 704412443,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1792562903380,
+      "link": null,
+      "locked": false,
+      "text": "URL\nfetch, axios, react-query\n\nState Variables:\n\nloading: Powers the spinner, tells us that the\n            request is live | boolean\n\nresponse: [\"sam\", \"ram\", \"yam\", \"ham\"] | [\"Resource not Found\"]\n            \n            {\n                status: // 200, 404,\n                error: \"\",\n                response: \"\"\n            }",
+      "fontSize": 20,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "originalText": "URL\nfetch, axios, react-query\n\nState Variables:\n\nloading: Powers the spinner, tells us that the\n            request is live | boolean\n\nresponse: [\"sam\", \"ram\", \"yam\", \"ham\"] | [\"Resource not Found\"]\n            \n            {\n                status: // 200, 404,\n                error: \"\",\n                response: \"\"\n            }",
+      "autoResize": true,
+      "lineHeight": 1.25
+    }
+  ],
+  "appState": {
+    "gridSize": 20,
+    "gridStep": 5,
+    "gridModeEnabled": false,
+    "viewBackgroundColor": "#ffffff"
+  },
+  "files": {}
+}
