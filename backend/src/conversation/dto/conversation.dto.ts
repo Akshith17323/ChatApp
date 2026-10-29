@@ -36,12 +36,29 @@ export class CreateConversationDto {
   participants_ids?: string[];
 
   @ApiPropertyOptional({
+    description: 'Alias for participants_ids (avoids non-whitelisted property error)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  participant_ids?: string[];
+
+  @ApiPropertyOptional({
     description: 'MongoDB ObjectId of a single recipient (convenient shorthand for DM).',
     example: '64b8f9e2c4a3b12d4e5f6790',
   })
   @IsOptional()
   @IsMongoId()
   recipient_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Alias for recipient_id (avoids non-whitelisted property error)',
+    example: '64b8f9e2c4a3b12d4e5f6790',
+  })
+  @IsOptional()
+  @IsMongoId()
+  participant_id?: string;
 }
 
 export class ConversationResponseDto {
