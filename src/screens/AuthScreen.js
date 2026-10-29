@@ -9,8 +9,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_BASE_URL } from '../api/config';
@@ -44,6 +44,7 @@ export default function AuthScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Apple Messages Icon & Header */}
           <View style={styles.headerContainer}>

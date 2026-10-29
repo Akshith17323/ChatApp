@@ -13,13 +13,36 @@ export const conversationApi = {
 
   /**
    * Create a new conversation (DM or GROUP) or retrieve existing DM.
-   * Caller is automatically added as participant and creator.
+   * Sanitizes payload keys to strictly match NestJS whitelisted DTO properties:
+   * `recipient_id` (for DMs) and `participants_ids` (for groups).
    * POST /conversation
    */
   async createConversation(payload: CreateConversationPayload): Promise<Conversation> {
+    const body: Record<string, any> = {};
+    if (payload.type) body.type = payload.type;
+    if (payload.name) body.name = payload.name;
+
+    // Normalizes recipient_id (accepts aliases like participant_id)
+    const recipient =
+      payload.recipient_id ||
+      (payload as any).participant_id ||
+      (payload as any).recipientId;
+    if (recipient) {
+      body.recipient_id = recipient;
+    }
+
+    // Normalizes participants_ids (accepts aliases like participant_ids)
+    const participants =
+      payload.participants_ids ||
+      (payload as any).participant_ids ||
+      (payload as any).participantIds;
+    if (participants && Array.isArray(participants) && participants.length > 0) {
+      body.participants_ids = participants;
+    }
+
     return apiFetch<Conversation>('/conversation', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
   },
 

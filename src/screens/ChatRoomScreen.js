@@ -77,25 +77,20 @@ export default function ChatRoomScreen({ route, navigation }) {
         <View style={styles.headerTitleContainer}>
           <AppleAvatar
             name={title || 'Chat'}
-            size={28}
+            size={34}
             isGroup={type === 'GROUP'}
             memberCount={memberCount}
           />
-          <View style={styles.headerTextCol}>
-            <View style={styles.headerNameRow}>
-              <Text style={styles.headerNameText} numberOfLines={1}>
-                {title || 'Chat'}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={11}
-                color="#8E8E93"
-                style={styles.headerChevron}
-              />
-            </View>
-            <Text style={styles.headerSubtext}>
-              {type === 'GROUP' ? `${memberCount || 2} People` : 'iMessage'}
+          <View style={styles.headerNameRow}>
+            <Text style={styles.headerNameText} numberOfLines={1}>
+              {title || 'Chat'}
             </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={10}
+              color="#8E8E93"
+              style={styles.headerChevron}
+            />
           </View>
         </View>
       ),
@@ -304,31 +299,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   headerTitleContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  headerTextCol: {
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingVertical: 1,
   },
   headerNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
   },
   headerNameText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#000000',
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
     maxWidth: 160,
   },
   headerChevron: {
-    marginLeft: 3,
-  },
-  headerSubtext: {
-    fontSize: 11,
-    color: '#8E8E93',
-    letterSpacing: -0.1,
+    marginLeft: 2,
   },
   headerRefreshBtn: {
     padding: 6,

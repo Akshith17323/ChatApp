@@ -121,7 +121,7 @@ export default function NewChatScreen({ navigation }) {
           }
         }}
       >
-        <AppleAvatar name={item.name} size={42} />
+        <AppleAvatar name={item.name} size={44} />
 
         <View style={styles.userInfoCol}>
           <Text style={styles.userName}>{item.name}</Text>
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: -16,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C6C6C8',
+    backgroundColor: '#E5E5EA',
   },
   actionCol: {
     paddingLeft: 8,

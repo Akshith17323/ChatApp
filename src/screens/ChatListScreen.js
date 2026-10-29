@@ -113,16 +113,10 @@ export default function ChatListScreen({ navigation }) {
           })
         }
       >
-        {/* Unread indicator spacer */}
-        <View style={styles.unreadColumn}>
-          {/* Subtle blue unread dot on newer chats */}
-          <View style={styles.unreadDotPlaceholder} />
-        </View>
-
         {/* Apple Avatar */}
         <AppleAvatar
           name={title}
-          size={52}
+          size={48}
           isGroup={!isDm}
           memberCount={memberCount}
         />
@@ -145,7 +139,7 @@ export default function ChatListScreen({ navigation }) {
           </View>
 
           <Text style={styles.chatSubtitle} numberOfLines={2}>
-            {isDm ? 'Tap to open iMessage' : `${memberCount} people`}
+            {isDm ? 'iMessage' : `${memberCount} people`}
           </Text>
 
           {/* Inset Hairline Separator */}
@@ -318,29 +312,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingLeft: 6,
-    paddingRight: 16,
+    paddingHorizontal: 16,
     paddingTop: 10,
-  },
-  unreadColumn: {
-    width: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadDotPlaceholder: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: 'transparent',
-  },
-  unreadDotActive: {
-    backgroundColor: '#007AFF',
   },
   chatContentContainer: {
     flex: 1,
     marginLeft: 12,
     position: 'relative',
-    paddingBottom: 10,
+    paddingBottom: 11,
+    justifyContent: 'center',
   },
   chatHeaderRow: {
     flexDirection: 'row',
@@ -349,10 +329,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   chatTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: '#000000',
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
     flex: 1,
     marginRight: 8,
   },
@@ -366,22 +346,23 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   chevron: {
-    marginLeft: 5,
+    marginLeft: 4,
   },
   chatSubtitle: {
     fontSize: 14,
     color: '#8E8E93',
     lineHeight: 18,
     letterSpacing: -0.2,
-    marginRight: 16,
+    marginTop: 1,
+    marginRight: 8,
   },
   separator: {
     position: 'absolute',
     bottom: 0,
     left: 0,
-    right: -16,
+    right: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C6C6C8',
+    backgroundColor: '#E5E5EA',
   },
   centerContainer: {
     flex: 1,
