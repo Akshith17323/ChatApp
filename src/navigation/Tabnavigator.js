@@ -11,12 +11,20 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: '#8E8E93',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#C6C6C8',
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '500',
+        },
         tabBarIcon: ({ color, size, focused }) => {
           let iconName = 'chatbubble-ellipses';
           if (route.name === 'ChatTab') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
           } else if (route.name === 'DemosTab') {
             iconName = focused ? 'flask' : 'flask-outline';
           } else if (route.name === 'SettingsTab') {
@@ -29,17 +37,17 @@ export default function TabNavigator() {
       <Tab.Screen
         name="ChatTab"
         component={ChatStack}
-        options={{ title: 'Chat', headerShown: false }}
-      />
-      <Tab.Screen
-        name="DemosTab"
-        component={HomeStack}
-        options={{ title: 'Demos', headerShown: false }}
+        options={{ title: 'Messages', headerShown: false }}
       />
       <Tab.Screen
         name="SettingsTab"
         component={SettingsScreen}
         options={{ title: 'Settings', headerShown: false }}
+      />
+      <Tab.Screen
+        name="DemosTab"
+        component={HomeStack}
+        options={{ title: 'Demos', headerShown: false }}
       />
     </Tab.Navigator>
   );

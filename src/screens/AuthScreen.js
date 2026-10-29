@@ -9,7 +9,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_BASE_URL } from '../api/config';
 
@@ -22,7 +24,7 @@ export default function AuthScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      setLocalError('Please enter both username and password.');
+      setLocalError('Please enter both your handle and password.');
       return;
     }
     setLocalError('');
@@ -34,225 +36,276 @@ export default function AuthScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.keyboardContainer}
-    >
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>Chat App</Text>
-          <Text style={styles.subtitle}>NestJS + MongoDB Chat API</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign In / Auto-Register</Text>
-          <Text style={styles.infoText}>
-            First time? Your user will be created automatically on the backend!
-          </Text>
-
-          <Text style={styles.label}>Backend Server URL</Text>
-          <TextInput
-            style={styles.input}
-            value={serverUrl}
-            onChangeText={setServerUrl}
-            placeholder="http://10.7.1.51:3000"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <View style={styles.presetRow}>
-            <TouchableOpacity
-              style={styles.presetButton}
-              onPress={() => setServerUrl('http://10.7.1.51:3000')}
-            >
-              <Text style={styles.presetText}>10.7.1.51:3000</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetButton}
-              onPress={() => setServerUrl('http://10.0.2.2:3000')}
-            >
-              <Text style={styles.presetText}>Android Emul.</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.presetButton}
-              onPress={() => setServerUrl('http://localhost:3000')}
-            >
-              <Text style={styles.presetText}>localhost</Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardContainer}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Apple Messages Icon & Header */}
+          <View style={styles.headerContainer}>
+            <View style={styles.appIconCircle}>
+              <Ionicons name="chatbubble-ellipses" size={48} color="#FFFFFF" />
+            </View>
+            <Text style={styles.title}>iMessage</Text>
+            <Text style={styles.subtitle}>
+              Sign in to your account or create a new one automatically.
+            </Text>
           </View>
 
-          <Text style={styles.label}>Username</Text>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="e.g. John Doe"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          {/* Inset Grouped Card */}
+          <View style={styles.groupedCard}>
+            <View style={styles.inputRow}>
+              <Text style={styles.rowLabel}>Handle</Text>
+              <TextInput
+                style={styles.rowInput}
+                value={username}
+                onChangeText={setUsername}
+                placeholder="e.g. Alex"
+                placeholderTextColor="#C7C7CC"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
 
-          <Text style={styles.label}>Password / Secret</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="e.g. secret123"
-            secureTextEntry
-          />
+            <View style={styles.rowDivider} />
+
+            <View style={styles.inputRow}>
+              <Text style={styles.rowLabel}>Password</Text>
+              <TextInput
+                style={styles.rowInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Required"
+                placeholderTextColor="#C7C7CC"
+                secureTextEntry
+              />
+            </View>
+
+            <View style={styles.rowDivider} />
+
+            <View style={styles.inputRow}>
+              <Text style={styles.rowLabel}>Server</Text>
+              <TextInput
+                style={styles.rowInput}
+                value={serverUrl}
+                onChangeText={setServerUrl}
+                placeholder="http://10.7.1.51:3000"
+                placeholderTextColor="#C7C7CC"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          {/* Quick preset chips */}
+          <View style={styles.presetSection}>
+            <Text style={styles.presetHeader}>Quick Server Presets</Text>
+            <View style={styles.presetRow}>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => setServerUrl('http://10.7.1.51:3000')}
+              >
+                <Text style={styles.presetChipText}>10.7.1.51:3000</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => setServerUrl('http://localhost:3000')}
+              >
+                <Text style={styles.presetChipText}>localhost:3000</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => setServerUrl('http://10.0.2.2:3000')}
+              >
+                <Text style={styles.presetChipText}>Android (10.0.2.2)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {(localError || error) ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{localError || error}</Text>
+            <View style={styles.errorBox}>
+              <Ionicons name="information-circle" size={18} color="#FF3B30" />
+              <Text style={styles.errorBoxText}>{localError || error}</Text>
             </View>
           ) : null}
 
+          {/* Apple Continue Button */}
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.continueButton, isLoading && styles.continueButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.buttonText}>Connect & Enter</Text>
+              <Text style={styles.continueButtonText}>Continue</Text>
             )}
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.docsCard}>
-          <Text style={styles.docsTitle}>API Information</Text>
-          <Text style={styles.docsText}>
-            • Target: {serverUrl}
+          <Text style={styles.appleFooterNote}>
+            Your user handle and chats will be synchronized securely with the NestJS backend.
           </Text>
-          <Text style={styles.docsText}>
-            • Auth: Basic {'<username>:<password>'}
-          </Text>
-          <Text style={styles.docsText}>
-            • Supports DMs, Group Chats, and FactBots!
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardContainer: { flex: 1, backgroundColor: '#f8fafc' },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
   container: {
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 24,
     justifyContent: 'center',
     flexGrow: 1,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1e293b',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
+  appIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: '#34C759',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
     shadowRadius: 10,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#64748b',
+    elevation: 8,
     marginBottom: 16,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-    marginTop: 10,
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#000000',
+    letterSpacing: -0.5,
   },
-  input: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  subtitle: {
     fontSize: 15,
-    color: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 20,
+    paddingHorizontal: 16,
+  },
+  groupedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  rowLabel: {
+    width: 90,
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  rowInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000000',
+    letterSpacing: -0.2,
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#C6C6C8',
+  },
+  presetSection: {
+    marginBottom: 18,
+    paddingHorizontal: 4,
+  },
+  presetHeader: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
+    marginBottom: 8,
   },
   presetRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 6,
-    marginBottom: 6,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  presetButton: {
-    backgroundColor: '#e2e8f0',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+  presetChip: {
+    backgroundColor: '#E3E3E8',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
   },
-  presetText: {
-    fontSize: 11,
-    color: '#475569',
+  presetChipText: {
+    fontSize: 12,
+    color: '#007AFF',
     fontWeight: '500',
   },
-  button: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 14,
-    borderRadius: 8,
+  errorBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    backgroundColor: '#FFE5E5',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 16,
+    gap: 8,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  errorContainer: {
-    backgroundColor: '#fee2e2',
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 12,
-  },
-  errorText: {
-    color: '#b91c1c',
+  errorBoxText: {
+    flex: 1,
     fontSize: 13,
+    color: '#FF3B30',
+    lineHeight: 18,
   },
-  docsCard: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: '#eff6ff',
+  continueButton: {
+    backgroundColor: '#007AFF',
+    height: 50,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  docsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1d4ed8',
-    marginBottom: 4,
+  continueButtonDisabled: {
+    opacity: 0.5,
   },
-  docsText: {
-    fontSize: 13,
-    color: '#1e40af',
-    marginTop: 2,
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.3,
+  },
+  appleFooterNote: {
+    fontSize: 12,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 16,
+    paddingHorizontal: 20,
   },
 });

@@ -1,19 +1,24 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useConversations, useUsers } from '../api/hooks';
+import AppleAvatar from '../components/AppleAvatar';
 
 export default function ChatListScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
   const {
     data: conversations,
     isLoading,
@@ -25,7 +30,7 @@ export default function ChatListScreen({ navigation }) {
   const { data: users } = useUsers();
 
   // Create an id -> name lookup map
-  const userMap = React.useMemo(() => {
+  const userMap = useMemo(() => {
     const map = new Map();
     if (users) {
       for (const u of users) {
@@ -39,7 +44,7 @@ export default function ChatListScreen({ navigation }) {
     if (item.name) return item.name;
 
     if (item.type === 'DM') {
-      const otherId = item.participants_ids.find((id) => id !== user?.id);
+      const otherId = item.participants_ids?.find((id) => id !== user?.id);
       if (otherId && userMap.has(otherId)) {
         return userMap.get(otherId);
       }
@@ -49,283 +54,402 @@ export default function ChatListScreen({ navigation }) {
     return 'Group Conversation';
   };
 
+  const formatAppleDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
+    if (isToday) {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday =
+      date.getDate() === yesterday.getDate() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getFullYear() === yesterday.getFullYear();
+
+    if (isYesterday) return 'Yesterday';
+
+    const diffDays = Math.round((now - date) / (1000 * 60 * 60 * 24));
+    if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    }
+
+    return date.toLocaleDateString([], { month: 'numeric', day: 'numeric', year: '2-digit' });
+  };
+
+  const filteredConversations = useMemo(() => {
+    if (!conversations) return [];
+    if (!searchQuery.trim()) return conversations;
+    const query = searchQuery.toLowerCase();
+    return conversations.filter((item) => {
+      const title = getConversationTitle(item).toLowerCase();
+      return title.includes(query);
+    });
+  }, [conversations, searchQuery, userMap, user?.id]);
+
   const renderConversationItem = ({ item }) => {
     const title = getConversationTitle(item);
     const isDm = item.type === 'DM';
-    const dateStr = item.createdAt
-      ? new Date(item.createdAt).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : '';
+    const dateStr = formatAppleDate(item.createdAt);
+    const memberCount = item.participants_ids?.length || 0;
 
     return (
       <TouchableOpacity
-        style={styles.chatItem}
+        style={styles.chatRow}
+        activeOpacity={0.7}
         onPress={() =>
           navigation.navigate('ChatRoom', {
             conversationId: item.id,
             title,
             type: item.type,
+            memberCount,
           })
         }
       >
-        <View style={[styles.avatar, isDm ? styles.dmAvatar : styles.groupAvatar]}>
-          <Ionicons
-            name={isDm ? 'person' : 'people'}
-            size={22}
-            color="#ffffff"
-          />
+        {/* Unread indicator spacer */}
+        <View style={styles.unreadColumn}>
+          {/* Subtle blue unread dot on newer chats */}
+          <View style={styles.unreadDotPlaceholder} />
         </View>
 
-        <View style={styles.chatInfo}>
+        {/* Apple Avatar */}
+        <AppleAvatar
+          name={title}
+          size={52}
+          isGroup={!isDm}
+          memberCount={memberCount}
+        />
+
+        {/* Content & Apple styled right edge */}
+        <View style={styles.chatContentContainer}>
           <View style={styles.chatHeaderRow}>
             <Text style={styles.chatTitle} numberOfLines={1}>
               {title}
             </Text>
-            <Text style={styles.chatTime}>{dateStr}</Text>
+            <View style={styles.timeChevronRow}>
+              <Text style={styles.chatTime}>{dateStr}</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color="#C7C7CC"
+                style={styles.chevron}
+              />
+            </View>
           </View>
-          <Text style={styles.chatSubtitle} numberOfLines={1}>
-            {isDm ? 'Direct Message' : `${item.participants_ids?.length || 0} members`}
-          </Text>
-        </View>
 
-        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+          <Text style={styles.chatSubtitle} numberOfLines={2}>
+            {isDm ? 'Tap to open iMessage' : `${memberCount} people`}
+          </Text>
+
+          {/* Inset Hairline Separator */}
+          <View style={styles.separator} />
+        </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      {/* User Header bar */}
-      <View style={styles.userBar}>
-        <View>
-          <Text style={styles.welcomeText}>Logged in as</Text>
-          <Text style={styles.currentUserName}>{user?.name || 'User'}</Text>
-        </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Conversations List */}
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Loading conversations...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.centerContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-          <Text style={styles.errorTitle}>Could not load conversations</Text>
-          <Text style={styles.errorMessage}>{error.message}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Top iOS Navigation Bar */}
+        <View style={styles.topNav}>
+          <TouchableOpacity style={styles.editBtn}>
+            <Text style={styles.navActionText}>Edit</Text>
           </TouchableOpacity>
-        </View>
-      ) : conversations && conversations.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Ionicons name="chatbubbles-outline" size={64} color="#cbd5e1" />
-          <Text style={styles.emptyTitle}>No conversations yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Tap the button below to start chatting with registered users or FactBots!
-          </Text>
           <TouchableOpacity
-            style={styles.startChatButton}
+            style={styles.composeBtn}
             onPress={() => navigation.navigate('NewChat')}
           >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={styles.startChatText}>Start a Chat</Text>
+            <Ionicons name="create-outline" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={conversations}
-          keyExtractor={(item) => item.id}
-          renderItem={renderConversationItem}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-          }
-        />
-      )}
 
-      {/* Floating Action Button for New Chat */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('NewChat')}
-      >
-        <Ionicons name="create-outline" size={26} color="#ffffff" />
-      </TouchableOpacity>
-    </View>
+        {/* Large iOS Header Title */}
+        <View style={styles.largeTitleContainer}>
+          <Text style={styles.largeTitle}>Messages</Text>
+        </View>
+
+        {/* Apple Capsule Search Bar */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={17} color="#8E8E93" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search"
+              placeholderTextColor="#8E8E93"
+              clearButtonMode="while-editing"
+            />
+            {searchQuery.length === 0 && (
+              <Ionicons name="mic" size={17} color="#8E8E93" style={styles.micIcon} />
+            )}
+          </View>
+        </View>
+
+        {/* Main Content List */}
+        {isLoading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="small" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading Messages...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="exclamationmark.circle" size={42} color="#FF3B30" />
+            <Text style={styles.errorTitle}>Messages Unavailable</Text>
+            <Text style={styles.errorMessage}>{error.message}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+              <Text style={styles.retryBtnText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredConversations.length === 0 ? (
+          <View style={styles.centerContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="chatbubble-ellipses" size={40} color="#007AFF" />
+            </View>
+            <Text style={styles.emptyTitle}>No Messages</Text>
+            <Text style={styles.emptySubtitle}>
+              Send a new iMessage to get the conversation started.
+            </Text>
+            <TouchableOpacity
+              style={styles.newChatAppleBtn}
+              onPress={() => navigation.navigate('NewChat')}
+            >
+              <Text style={styles.newChatAppleBtnText}>New Message</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredConversations}
+            keyExtractor={(item) => item.id}
+            renderItem={renderConversationItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={refetch}
+                tintColor="#007AFF"
+              />
+            }
+          />
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FFFFFF',
   },
-  userBar: {
+  topNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 12 : 4,
+    paddingBottom: 4,
   },
-  welcomeText: {
-    fontSize: 12,
-    color: '#64748b',
-    fontWeight: '500',
+  navActionText: {
+    fontSize: 17,
+    color: '#007AFF',
+    letterSpacing: -0.4,
   },
-  currentUserName: {
-    fontSize: 18,
+  editBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  composeBtn: {
+    padding: 4,
+  },
+  largeTitleContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  largeTitle: {
+    fontSize: 34,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#000000',
+    letterSpacing: -0.6,
   },
-  logoutButton: {
+  searchSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
+    backgroundColor: '#E3E3E8',
+    borderRadius: 10,
     paddingHorizontal: 10,
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
+    height: 36,
   },
-  logoutText: {
-    fontSize: 13,
-    color: '#ef4444',
-    fontWeight: '600',
+  searchIcon: {
+    marginRight: 6,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000000',
+    letterSpacing: -0.3,
+    paddingVertical: 0,
+  },
+  micIcon: {
+    marginLeft: 6,
   },
   listContent: {
-    paddingVertical: 8,
+    paddingBottom: 24,
   },
-  chatItem: {
+  chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#FFFFFF',
+    paddingLeft: 6,
+    paddingRight: 16,
+    paddingTop: 10,
   },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  unreadColumn: {
+    width: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
   },
-  dmAvatar: {
-    backgroundColor: '#3b82f6',
+  unreadDotPlaceholder: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: 'transparent',
   },
-  groupAvatar: {
-    backgroundColor: '#8b5cf6',
+  unreadDotActive: {
+    backgroundColor: '#007AFF',
   },
-  chatInfo: {
+  chatContentContainer: {
     flex: 1,
+    marginLeft: 12,
+    position: 'relative',
+    paddingBottom: 10,
   },
   chatHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   chatTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#000000',
+    letterSpacing: -0.4,
     flex: 1,
     marginRight: 8,
   },
+  timeChevronRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   chatTime: {
-    fontSize: 12,
-    color: '#94a3b8',
+    fontSize: 14,
+    color: '#8E8E93',
+    letterSpacing: -0.2,
+  },
+  chevron: {
+    marginLeft: 5,
   },
   chatSubtitle: {
-    fontSize: 13,
-    color: '#64748b',
+    fontSize: 14,
+    color: '#8E8E93',
+    lineHeight: 18,
+    letterSpacing: -0.2,
+    marginRight: 16,
+  },
+  separator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: -16,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#C6C6C8',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingHorizontal: 32,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748b',
+    marginTop: 10,
+    fontSize: 15,
+    color: '#8E8E93',
   },
   errorTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#b91c1c',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
     marginTop: 12,
   },
   errorMessage: {
-    fontSize: 13,
-    color: '#ef4444',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: '#2563eb',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 16,
-  },
-  emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#8E8E93',
     textAlign: 'center',
     marginTop: 6,
-    marginBottom: 20,
+    lineHeight: 19,
   },
-  startChatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2563eb',
-    paddingVertical: 12,
+  retryBtn: {
+    marginTop: 18,
+    paddingVertical: 8,
     paddingHorizontal: 20,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 16,
   },
-  startChatText: {
-    color: '#ffffff',
+  retryBtnText: {
+    color: '#007AFF',
     fontWeight: '600',
     fontSize: 15,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#2563eb',
+  emptyIconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#E5F1FF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000000',
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  newChatAppleBtn: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 22,
+  },
+  newChatAppleBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

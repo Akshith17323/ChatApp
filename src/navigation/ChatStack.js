@@ -12,7 +12,15 @@ export default function ChatStack() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerTintColor: '#007AFF',
+        headerBackTitle: 'Messages',
+        headerStyle: {
+          backgroundColor: '#FFFFFF',
+        },
+      }}
+    >
       {!isAuthenticated ? (
         <Stack.Screen
           name="Auth"
@@ -24,17 +32,23 @@ export default function ChatStack() {
           <Stack.Screen
             name="ChatList"
             component={ChatListScreen}
-            options={{ title: 'Messages', headerShadowVisible: false }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="ChatRoom"
             component={ChatRoomScreen}
-            options={{ headerBackTitle: 'Back' }}
+            options={{
+              headerBackTitle: 'Messages',
+            }}
           />
           <Stack.Screen
             name="NewChat"
             component={NewChatScreen}
-            options={{ title: 'Start a Chat', headerBackTitle: 'Cancel' }}
+            options={{
+              title: 'New Message',
+              headerBackTitle: 'Cancel',
+              headerShadowVisible: false,
+            }}
           />
         </>
       )}

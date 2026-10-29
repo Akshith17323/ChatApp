@@ -10,9 +10,11 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../api/userApi';
+import AppleAvatar from '../components/AppleAvatar';
 
 export default function SettingsScreen() {
   const { user, username, baseUrl, setServerUrl, logout } = useAuth();
@@ -23,7 +25,7 @@ export default function SettingsScreen() {
   const handleSaveUrl = () => {
     if (!editingUrl.trim()) return;
     setServerUrl(editingUrl.trim());
-    Alert.alert('Saved', `Server URL set to ${editingUrl.trim()}`);
+    Alert.alert('Server Updated', `Active backend URL set to:\n${editingUrl.trim()}`);
   };
 
   const handleTestConnection = async () => {
@@ -33,12 +35,12 @@ export default function SettingsScreen() {
       const res = await userApi.getUserProfile();
       setPingResult({
         success: true,
-        message: `Connected successfully! Authenticated as "${res.name}" (ID: ${res.id})`,
+        message: `Connected! Authenticated as "${res.name}"`,
       });
     } catch (err) {
       setPingResult({
         success: false,
-        message: `Connection failed: ${err.message}`,
+        message: `Offline: ${err.message}`,
       });
     } finally {
       setTestingPing(false);
@@ -46,67 +48,75 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.screenHeader}>Settings & Backend</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.largeTitle}>Settings</Text>
 
-      {/* Profile Card */}
-      <View style={styles.card}>
-        <View style={styles.avatarRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
-            </Text>
-          </View>
-          <View style={styles.profileDetails}>
-            <Text style={styles.userName}>{user?.name || username || 'Not logged in'}</Text>
-            <Text style={styles.userId}>User ID: {user?.id || '—'}</Text>
+        {/* Apple ID Style Profile Card */}
+        <View style={styles.groupedCard}>
+          <View style={styles.profileRow}>
+            <AppleAvatar name={user?.name || username || 'User'} size={56} />
+            <View style={styles.profileTextCol}>
+              <Text style={styles.profileName}>
+                {user?.name || username || 'Not Signed In'}
+              </Text>
+              <Text style={styles.profileSubtext}>
+                {user?.id ? `ID: ${user.id}` : 'Local Profile'}
+              </Text>
+              {user?.bio ? (
+                <Text style={styles.profileBio} numberOfLines={1}>
+                  {user.bio}
+                </Text>
+              ) : null}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
           </View>
         </View>
 
-        {user?.bio ? (
-          <View style={styles.bioContainer}>
-            <Text style={styles.bioLabel}>Bio</Text>
-            <Text style={styles.bioText}>{user.bio}</Text>
+        {/* Server Configuration Section */}
+        <Text style={styles.sectionHeader}>SERVER CONFIGURATION</Text>
+        <View style={styles.groupedCard}>
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>URL</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={editingUrl}
+              onChangeText={setEditingUrl}
+              placeholder="http://10.7.1.51:3000"
+              placeholderTextColor="#8E8E93"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           </View>
-        ) : null}
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-          <Text style={styles.logoutBtnText}>Log Out</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Backend Configuration Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Backend Server Configuration</Text>
-        <Text style={styles.helperText}>
-          Default is configured to http://10.7.1.51:3000 as specified in the docs.
-        </Text>
-
-        <Text style={styles.label}>Server Base URL</Text>
-        <TextInput
-          style={styles.input}
-          value={editingUrl}
-          onChangeText={setEditingUrl}
-          placeholder="http://10.7.1.51:3000"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        <View style={styles.btnRow}>
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSaveUrl}>
-            <Text style={styles.saveBtnText}>Save URL</Text>
-          </TouchableOpacity>
+          <View style={styles.rowDivider} />
 
           <TouchableOpacity
-            style={[styles.testBtn, testingPing && styles.btnDisabled]}
+            style={styles.actionRow}
+            onPress={handleSaveUrl}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.actionRowText}>Apply Server URL</Text>
+            <Ionicons name="cloud-upload-outline" size={19} color="#007AFF" />
+          </TouchableOpacity>
+
+          <View style={styles.rowDivider} />
+
+          <TouchableOpacity
+            style={styles.actionRow}
             onPress={handleTestConnection}
             disabled={testingPing}
+            activeOpacity={0.6}
           >
+            <Text style={styles.actionRowText}>Test Connection</Text>
             {testingPing ? (
-              <ActivityIndicator color="#ffffff" size="small" />
+              <ActivityIndicator size="small" color="#007AFF" />
             ) : (
-              <Text style={styles.testBtnText}>Test Ping</Text>
+              <Ionicons name="pulse-outline" size={19} color="#007AFF" />
             )}
           </TouchableOpacity>
         </View>
@@ -114,18 +124,18 @@ export default function SettingsScreen() {
         {pingResult && (
           <View
             style={[
-              styles.resultBanner,
+              styles.statusBanner,
               pingResult.success ? styles.successBanner : styles.errorBanner,
             ]}
           >
             <Ionicons
               name={pingResult.success ? 'checkmark-circle' : 'close-circle'}
               size={18}
-              color={pingResult.success ? '#15803d' : '#b91c1c'}
+              color={pingResult.success ? '#34C759' : '#FF3B30'}
             />
             <Text
               style={[
-                styles.resultText,
+                styles.statusBannerText,
                 pingResult.success ? styles.successText : styles.errorText,
               ]}
             >
@@ -133,109 +143,201 @@ export default function SettingsScreen() {
             </Text>
           </View>
         )}
-      </View>
 
-      {/* API Reference Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Backend API Reference</Text>
-        <Text style={styles.endpoint}>• GET /user — List all users</Text>
-        <Text style={styles.endpoint}>• GET /user/profile — Caller/target profile</Text>
-        <Text style={styles.endpoint}>• GET /conversation — List conversations</Text>
-        <Text style={styles.endpoint}>• POST /conversation — Create DM or Group</Text>
-        <Text style={styles.endpoint}>• GET /message — Fetch messages (paginated)</Text>
-        <Text style={styles.endpoint}>• POST /message — Send message</Text>
-      </View>
-    </ScrollView>
+        {/* Account Section */}
+        <Text style={styles.sectionHeader}>ACCOUNT</Text>
+        <View style={styles.groupedCard}>
+          <TouchableOpacity
+            style={styles.dangerRow}
+            onPress={logout}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.dangerRowText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* About Section */}
+        <Text style={styles.sectionHeader}>ABOUT</Text>
+        <View style={styles.groupedCard}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Client Engine</Text>
+            <Text style={styles.infoValue}>Apple Messages Theme</Text>
+          </View>
+          <View style={styles.rowDivider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Backend Framework</Text>
+            <Text style={styles.infoValue}>NestJS + Prisma</Text>
+          </View>
+          <View style={styles.rowDivider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>API Architecture</Text>
+            <Text style={styles.infoValue}>REST / Basic Auth</Text>
+          </View>
+        </View>
+
+        <Text style={styles.footerNote}>
+          Messages are delivered through the university 5th semester backend project.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 20, gap: 16 },
-  screenHeader: { fontSize: 24, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 18,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 36,
+  },
+  largeTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#000000',
+    letterSpacing: -0.6,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8E8E93',
+    letterSpacing: 0.2,
+    marginTop: 22,
+    marginBottom: 6,
+    marginLeft: 14,
+  },
+  groupedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 6 },
-  helperText: { fontSize: 13, color: '#64748b', marginBottom: 12 },
-  avatarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  avatarText: { fontSize: 22, fontWeight: '700', color: '#ffffff' },
-  profileDetails: { flex: 1 },
-  userName: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
-  userId: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  bioContainer: {
-    backgroundColor: '#f1f5f9',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 14,
-  },
-  bioLabel: { fontSize: 11, fontWeight: '600', color: '#64748b', marginBottom: 2 },
-  bioText: { fontSize: 13, color: '#1e293b' },
-  logoutBtn: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
+    padding: 16,
+    gap: 14,
   },
-  logoutBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
-  label: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
-  input: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  btnRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  saveBtn: {
+  profileTextCol: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
   },
-  saveBtnText: { color: '#0f172a', fontWeight: '600', fontSize: 14 },
-  testBtn: {
-    flex: 1,
-    backgroundColor: '#2563eb',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
+  profileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+    letterSpacing: -0.3,
   },
-  btnDisabled: { opacity: 0.6 },
-  testBtnText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
-  resultBanner: {
+  profileSubtext: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  profileBio: {
+    fontSize: 13,
+    color: '#3C3C43',
+    marginTop: 3,
+  },
+  fieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  fieldLabel: {
+    width: 60,
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '400',
+  },
+  fieldInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000000',
+    letterSpacing: -0.2,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  actionRowText: {
+    fontSize: 16,
+    color: '#007AFF',
+    letterSpacing: -0.3,
+  },
+  dangerRow: {
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  dangerRowText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontWeight: '500',
+    letterSpacing: -0.3,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  infoLabel: {
+    fontSize: 16,
+    color: '#000000',
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#8E8E93',
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#C6C6C8',
+    marginLeft: 16,
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
+    borderRadius: 10,
+    marginTop: 10,
+    gap: 8,
   },
-  successBanner: { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', borderWidth: 1 },
-  errorBanner: { backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1 },
-  resultText: { fontSize: 12, flex: 1 },
-  successText: { color: '#15803d' },
-  errorText: { color: '#b91c1c' },
-  endpoint: { fontSize: 13, color: '#334155', marginVertical: 3, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  successBanner: {
+    backgroundColor: '#EAF8EE',
+  },
+  errorBanner: {
+    backgroundColor: '#FFEBEA',
+  },
+  statusBannerText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  successText: {
+    color: '#28A745',
+  },
+  errorText: {
+    color: '#FF3B30',
+  },
+  footerNote: {
+    fontSize: 12,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 24,
+    paddingHorizontal: 20,
+    lineHeight: 16,
+  },
 });
