@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsMongoId, IsString, IsOptional, MinLength } from 'class-validator';
+import { IsMongoId, IsString, IsOptional, MinLength, ValidateIf } from 'class-validator';
+import { FileResponseDto } from '../../file/dto/file.dto';
 
 // ─── Query DTO ────────────────────────────────────────────────────────────────
 
@@ -32,14 +33,33 @@ export class CreateMessageDto {
   @IsMongoId()
   conversation_id: string;
 
-  @ApiProperty({
-    description: 'Text content of the message',
+  @ApiPropertyOptional({
+    description:
+      'Text content of the message. Required for text messages; optional (a caption) when file_id or imageInfo is given.',
     example: 'Hey, are we meeting tomorrow?',
-    minLength: 1,
   })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  content: string;
+  content?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Base64 data URI of an image (e.g. data:image/jpeg;base64,...). ' +
+      'If raw Base64 is sent without the data: prefix, the backend auto-prepends data:image/jpeg;base64,.',
+    example: 'data:image/png;base64,iVBORw0KGgo...',
+  })
+  @IsOptional()
+  @IsString()
+  imageInfo?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ObjectId of an image or file uploaded with POST /file. It must have been uploaded by the sender.',
+    example: '64b8f9e2c4a3b12d4e5f9001',
+  })
+  @IsOptional()
+  @IsMongoId()
+  file_id?: string;
 }
 
 // ─── Response DTOs ────────────────────────────────────────────────────────────
@@ -51,11 +71,38 @@ export class MessageResponseDto {
   })
   id: string;
 
-  @ApiProperty({
-    description: 'Text content of the message',
+  @ApiPropertyOptional({
+    description: 'Text content of the message (null or empty string for an attachment sent without a caption)',
     example: 'Hey, are we meeting tomorrow?',
   })
-  content: string;
+  content?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Base64 data URI of the image, directly usable in React Native <Image source={{ uri }} />',
+    example: 'data:image/png;base64,iVBORw0KGgo...',
+  })
+  imageInfo?: string | null;
+
+  @ApiProperty({
+    description: 'TEXT, or IMAGE / FILE when the message has an attachment',
+    enum: ['TEXT', 'IMAGE', 'FILE'],
+    example: 'TEXT',
+  })
+  type: 'TEXT' | 'IMAGE' | 'FILE';
+
+  @ApiPropertyOptional({
+    description: 'ObjectId of the attached file, or null',
+    example: null,
+    nullable: true,
+  })
+  fileId: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Metadata of the attached file (without its contents), or null. Fetch the contents with GET /file/{id}.',
+    type: FileResponseDto,
+    nullable: true,
+  })
+  file: FileResponseDto | null;
 
   @ApiProperty({
     description: 'ISO timestamp when the message was created',

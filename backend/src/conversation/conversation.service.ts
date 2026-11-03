@@ -41,13 +41,8 @@ export class ConversationService {
    */
   async createConversation(dto: CreateConversationDto, callerId: string) {
     const participantIds = new Set<string>();
-    if (dto.recipient_id) participantIds.add(dto.recipient_id);
-    if (dto.participant_id) participantIds.add(dto.participant_id);
     if (dto.participants_ids) {
       for (const id of dto.participants_ids) participantIds.add(id);
-    }
-    if (dto.participant_ids) {
-      for (const id of dto.participant_ids) participantIds.add(id);
     }
 
     // Remove caller if caller passed their own ID in participants
@@ -62,7 +57,7 @@ export class ConversationService {
     // Verify all participants exist
     const foundUsers = await this.prisma.user.findMany({
       where: { id: { in: participantsArray } },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
     if (foundUsers.length !== participantsArray.length) {
@@ -91,10 +86,17 @@ export class ConversationService {
     // Always include caller in participants_ids
     const allParticipantIds = [callerId, ...participantsArray];
 
+    // For DMs, override name to [DM] {username with whom created}
+    let conversationName = dto.name ?? null;
+    if (type === 'DM') {
+      const otherUser = foundUsers.find((u) => u.id === participantsArray[0]);
+      conversationName = `[DM] ${otherUser?.name ?? participantsArray[0]}`;
+    }
+
     const conversation = await this.prisma.conversation.create({
       data: {
         type,
-        name: dto.name ?? null,
+        name: conversationName,
         createdBy: callerId,
         participants_ids: allParticipantIds,
       },

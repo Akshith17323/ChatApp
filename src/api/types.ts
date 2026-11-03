@@ -20,6 +20,22 @@ export interface Conversation {
   participants_ids: string[];
 }
 
+export interface FileMetadata {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  kind: 'IMAGE' | 'FILE';
+  uploadedBy: string;
+  createdAt: string;
+  downloadUrl: string;
+  sourceUrl?: string | null;
+}
+
+export interface FileDetail extends FileMetadata {
+  data: string; // base64
+}
+
 export interface MessageStatus {
   delivered: boolean;
   read: boolean;
@@ -27,7 +43,11 @@ export interface MessageStatus {
 
 export interface Message {
   id: string;
-  content: string;
+  content?: string | null;
+  imageInfo?: string | null;
+  type?: 'TEXT' | 'IMAGE' | 'FILE';
+  fileId?: string | null;
+  file?: FileMetadata | null;
   createdAt: string;
   senderId: string;
   conversationId: string;
@@ -49,7 +69,16 @@ export interface CreateConversationPayload {
 
 export interface CreateMessagePayload {
   conversation_id: string;
-  content: string;
+  content?: string;
+  imageInfo?: string;
+  file_id?: string;
+}
+
+export interface UploadFilePayload {
+  file_name?: string;
+  mime_type?: string;
+  data?: string;
+  url?: string;
 }
 
 export interface GetMessagesParams {
