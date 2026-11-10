@@ -270,6 +270,13 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   const messages = messagesResponse?.data || [];
 
+  const formatMessageTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
   const renderMessageItem = ({ item, index }) => {
     const isMine = item.senderId === user?.id;
     const isLastMessage = index === messages.length - 1;
@@ -280,6 +287,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     const imageUri = getMessageImageUri(item);
     const hasImage = !!imageUri;
     const hasText = !!(item.content && item.content.trim().length > 0);
+    const timeStr = formatMessageTime(item.createdAt);
 
     let appleStatus = null;
     if (isMine && item.status) {
@@ -346,6 +354,27 @@ export default function ChatRoomScreen({ route, navigation }) {
                 {item.content}
               </Text>
             )}
+
+            <View style={styles.bubbleFooterRow}>
+              {timeStr ? (
+                <Text
+                  style={[
+                    styles.bubbleTimeText,
+                    isMine ? styles.myBubbleTimeText : styles.otherBubbleTimeText,
+                  ]}
+                >
+                  {timeStr}
+                </Text>
+              ) : null}
+              {isMine && (
+                <Ionicons
+                  name={appleStatus === 'Read' ? 'checkmark-done' : 'checkmark'}
+                  size={12}
+                  color={isMine ? 'rgba(255, 255, 255, 0.7)' : '#8E8E93'}
+                  style={styles.checkIcon}
+                />
+              )}
+            </View>
           </View>
         </View>
 
@@ -359,8 +388,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={headerHeight}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
         style={styles.container}
       >
         {/* Messages List Area */}
@@ -392,6 +421,22 @@ export default function ChatRoomScreen({ route, navigation }) {
                 <Text style={styles.dateStampText}>iMessage</Text>
               </View>
             )}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyChatContainer}>
+                <AppleAvatar
+                  name={title || 'Chat'}
+                  size={64}
+                  isGroup={type === 'GROUP'}
+                  memberCount={memberCount}
+                />
+                <Text style={styles.emptyChatTitle}>{title || 'Conversation'}</Text>
+                <Text style={styles.emptyChatSubtitle}>
+                  {type === 'GROUP'
+                    ? `Group conversation with ${memberCount || 'several'} members.`
+                    : 'End-to-end conversation. Say hello! 👋'}
+                </Text>
+              </View>
+            )}
             onContentSizeChange={() =>
               flatListRef.current?.scrollToEnd({ animated: false })
             }
@@ -404,8 +449,8 @@ export default function ChatRoomScreen({ route, navigation }) {
             styles.inputContainer,
             {
               paddingBottom: isKeyboardVisible
-                ? 8
-                : Math.max(insets.bottom, 8),
+                ? (Platform.OS === 'ios' ? 8 : 6)
+                : Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 8),
             },
           ]}
         >
@@ -670,8 +715,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000000',
     letterSpacing: -0.3,
-    paddingTop: 5,
-    paddingBottom: 5,
+    paddingTop: Platform.OS === 'android' ? 4 : 5,
+    paddingBottom: Platform.OS === 'android' ? 4 : 5,
+    textAlignVertical: 'center',
   },
   sendButton: {
     width: 28,
@@ -708,6 +754,47 @@ const styles = StyleSheet.create({
   captionText: {
     marginTop: 6,
     marginHorizontal: 8,
+  },
+  bubbleFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 3,
+    gap: 3,
+  },
+  bubbleTimeText: {
+    fontSize: 10,
+    fontWeight: '400',
+  },
+  myBubbleTimeText: {
+    color: 'rgba(255, 255, 255, 0.75)',
+  },
+  otherBubbleTimeText: {
+    color: '#8E8E93',
+  },
+  checkIcon: {
+    marginLeft: 1,
+  },
+  emptyChatContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyChatTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000000',
+    marginTop: 12,
+    letterSpacing: -0.3,
+  },
+  emptyChatSubtitle: {
+    fontSize: 13,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 240,
+    lineHeight: 18,
   },
   modalBackdrop: {
     flex: 1,

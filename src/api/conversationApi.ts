@@ -22,22 +22,25 @@ export const conversationApi = {
     if (payload.type) body.type = payload.type;
     if (payload.name) body.name = payload.name;
 
-    // Normalizes recipient_id (accepts aliases like participant_id)
+    // Normalizes recipient into participants_ids (backend only accepts participants_ids)
     const recipient =
       payload.recipient_id ||
       (payload as any).participant_id ||
       (payload as any).recipientId;
-    if (recipient) {
-      body.recipient_id = recipient;
-    }
 
-    // Normalizes participants_ids (accepts aliases like participant_ids)
     const participants =
       payload.participants_ids ||
       (payload as any).participant_ids ||
-      (payload as any).participantIds;
-    if (participants && Array.isArray(participants) && participants.length > 0) {
-      body.participants_ids = participants;
+      (payload as any).participantIds ||
+      [];
+
+    const allParticipants = Array.isArray(participants) ? [...participants] : [];
+    if (recipient && !allParticipants.includes(recipient)) {
+      allParticipants.push(recipient);
+    }
+
+    if (allParticipants.length > 0) {
+      body.participants_ids = allParticipants;
     }
 
     return apiFetch<Conversation>('/conversation', {

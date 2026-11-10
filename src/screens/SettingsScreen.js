@@ -121,6 +121,58 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Quick presets */}
+        <View style={styles.presetsRow}>
+          <TouchableOpacity
+            style={[
+              styles.presetChip,
+              editingUrl === 'http://10.7.1.51:3000' && styles.presetChipActive,
+            ]}
+            onPress={() => setEditingUrl('http://10.7.1.51:3000')}
+          >
+            <Text
+              style={[
+                styles.presetChipText,
+                editingUrl === 'http://10.7.1.51:3000' && styles.presetChipTextActive,
+              ]}
+            >
+              10.7.1.51:3000
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.presetChip,
+              editingUrl === 'http://localhost:3000' && styles.presetChipActive,
+            ]}
+            onPress={() => setEditingUrl('http://localhost:3000')}
+          >
+            <Text
+              style={[
+                styles.presetChipText,
+                editingUrl === 'http://localhost:3000' && styles.presetChipTextActive,
+              ]}
+            >
+              localhost:3000
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.presetChip,
+              editingUrl === 'http://10.0.2.2:3000' && styles.presetChipActive,
+            ]}
+            onPress={() => setEditingUrl('http://10.0.2.2:3000')}
+          >
+            <Text
+              style={[
+                styles.presetChipText,
+                editingUrl === 'http://10.0.2.2:3000' && styles.presetChipTextActive,
+              ]}
+            >
+              Emulator (10.0.2.2)
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {pingResult && (
           <View
             style={[
@@ -306,6 +358,35 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#C6C6C8',
     marginLeft: 16,
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  presetChip: {
+    backgroundColor: '#E5E5EA',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  presetChipActive: {
+    backgroundColor: '#E5F1FF',
+    borderColor: '#007AFF',
+  },
+  presetChipText: {
+    fontSize: 12,
+    color: '#3C3C43',
+    fontWeight: '500',
+  },
+  presetChipTextActive: {
+    color: '#007AFF',
+    fontWeight: '700',
   },
   statusBanner: {
     flexDirection: 'row',

@@ -26,7 +26,9 @@ function getColorForString(str = '') {
 
 function getInitials(name = '') {
   if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
+  const cleaned = name.replace(/^\[(?:DM|Group)\]\s*/i, '').trim();
+  if (!cleaned) return '?';
+  const parts = cleaned.split(/\s+/);
   if (parts.length === 1) {
     return parts[0].slice(0, 2).toUpperCase();
   }
