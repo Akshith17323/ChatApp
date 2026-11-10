@@ -107,22 +107,52 @@ export default function AuthScreen({ navigation }) {
             <Text style={styles.presetHeader}>Quick Server Presets</Text>
             <View style={styles.presetRow}>
               <TouchableOpacity
-                style={styles.presetChip}
+                style={[
+                  styles.presetChip,
+                  serverUrl === 'http://10.7.1.51:3000' && styles.presetChipActive,
+                ]}
                 onPress={() => setServerUrl('http://10.7.1.51:3000')}
               >
-                <Text style={styles.presetChipText}>10.7.1.51:3000</Text>
+                <Text
+                  style={[
+                    styles.presetChipText,
+                    serverUrl === 'http://10.7.1.51:3000' && styles.presetChipTextActive,
+                  ]}
+                >
+                  10.7.1.51:3000
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.presetChip}
+                style={[
+                  styles.presetChip,
+                  serverUrl === 'http://localhost:3000' && styles.presetChipActive,
+                ]}
                 onPress={() => setServerUrl('http://localhost:3000')}
               >
-                <Text style={styles.presetChipText}>localhost:3000</Text>
+                <Text
+                  style={[
+                    styles.presetChipText,
+                    serverUrl === 'http://localhost:3000' && styles.presetChipTextActive,
+                  ]}
+                >
+                  localhost:3000
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.presetChip}
+                style={[
+                  styles.presetChip,
+                  serverUrl === 'http://10.0.2.2:3000' && styles.presetChipActive,
+                ]}
                 onPress={() => setServerUrl('http://10.0.2.2:3000')}
               >
-                <Text style={styles.presetChipText}>Android (10.0.2.2)</Text>
+                <Text
+                  style={[
+                    styles.presetChipText,
+                    serverUrl === 'http://10.0.2.2:3000' && styles.presetChipTextActive,
+                  ]}
+                >
+                  Emulator (10.0.2.2)
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -258,11 +288,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  presetChipActive: {
+    backgroundColor: '#E5F1FF',
+    borderColor: '#007AFF',
   },
   presetChipText: {
     fontSize: 12,
-    color: '#007AFF',
+    color: '#3C3C43',
     fontWeight: '500',
+  },
+  presetChipTextActive: {
+    color: '#007AFF',
+    fontWeight: '700',
   },
   errorBox: {
     flexDirection: 'row',

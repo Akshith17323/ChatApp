@@ -16,6 +16,7 @@ export default function ChatStack() {
       screenOptions={{
         headerTintColor: '#007AFF',
         headerBackTitle: 'Messages',
+        headerTitleAlign: 'center',
         headerStyle: {
           backgroundColor: '#FFFFFF',
         },

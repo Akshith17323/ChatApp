@@ -57,6 +57,7 @@ export default function ChatListScreen({ navigation }) {
   const formatAppleDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
     const now = new Date();
     const isToday =
       date.getDate() === now.getDate() &&
@@ -76,7 +77,7 @@ export default function ChatListScreen({ navigation }) {
 
     if (isYesterday) return 'Yesterday';
 
-    const diffDays = Math.round((now - date) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays < 7) {
       return date.toLocaleDateString([], { weekday: 'short' });
     }
@@ -181,8 +182,17 @@ export default function ChatListScreen({ navigation }) {
               placeholder="Search"
               placeholderTextColor="#8E8E93"
               clearButtonMode="while-editing"
+              returnKeyType="search"
             />
-            {searchQuery.length === 0 && (
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={18} color="#8E8E93" />
+              </TouchableOpacity>
+            ) : (
               <Ionicons name="mic" size={17} color="#8E8E93" style={styles.micIcon} />
             )}
           </View>
@@ -196,7 +206,7 @@ export default function ChatListScreen({ navigation }) {
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="exclamationmark.circle" size={42} color="#FF3B30" />
+            <Ionicons name="alert-circle" size={48} color="#FF3B30" />
             <Text style={styles.errorTitle}>Messages Unavailable</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>

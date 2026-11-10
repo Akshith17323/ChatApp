@@ -44,7 +44,7 @@ export default function NewChatScreen({ navigation }) {
     createConversation(
       {
         type: 'DM',
-        recipient_id: targetUser.id,
+        participants_ids: [targetUser.id],
       },
       {
         onSuccess: (conv) => {
