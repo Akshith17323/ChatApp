@@ -13,9 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { DEFAULT_BASE_URL } from '../api/config';
 
-export default function AuthScreen({ navigation }) {
+export default function AuthScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { login, isLoading, error } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -49,7 +52,7 @@ export default function AuthScreen({ navigation }) {
           {/* Apple Messages Icon & Header */}
           <View style={styles.headerContainer}>
             <View style={styles.appIconCircle}>
-              <Ionicons name="chatbubble-ellipses" size={48} color="#FFFFFF" />
+              <Ionicons name="chatbubble-ellipses" size={48} color={colors.onPrimary} />
             </View>
             <Text style={styles.title}>iMessage</Text>
             <Text style={styles.subtitle}>
@@ -66,7 +69,7 @@ export default function AuthScreen({ navigation }) {
                 value={username}
                 onChangeText={setUsername}
                 placeholder="e.g. Alex"
-                placeholderTextColor="#C7C7CC"
+                placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -81,7 +84,7 @@ export default function AuthScreen({ navigation }) {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Required"
-                placeholderTextColor="#C7C7CC"
+                placeholderTextColor={colors.placeholder}
                 secureTextEntry
               />
             </View>
@@ -95,7 +98,7 @@ export default function AuthScreen({ navigation }) {
                 value={serverUrl}
                 onChangeText={setServerUrl}
                 placeholder="http://10.7.1.51:3000"
-                placeholderTextColor="#C7C7CC"
+                placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -159,7 +162,7 @@ export default function AuthScreen({ navigation }) {
 
           {(localError || error) ? (
             <View style={styles.errorBox}>
-              <Ionicons name="information-circle" size={18} color="#FF3B30" />
+              <Ionicons name="information-circle" size={18} color={colors.danger} />
               <Text style={styles.errorBoxText}>{localError || error}</Text>
             </View>
           ) : null}
@@ -172,7 +175,7 @@ export default function AuthScreen({ navigation }) {
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={colors.onPrimary} size="small" />
             ) : (
               <Text style={styles.continueButtonText}>Continue</Text>
             )}
@@ -187,10 +190,10 @@ export default function AuthScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.groupedBackground,
   },
   keyboardContainer: {
     flex: 1,
@@ -210,10 +213,10 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 20,
-    backgroundColor: '#34C759',
+    backgroundColor: colors.appIcon,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#34C759',
+    shadowColor: colors.appIcon,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -223,22 +226,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 20,
     paddingHorizontal: 16,
   },
   groupedCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -253,18 +256,18 @@ const styles = StyleSheet.create({
   rowLabel: {
     width: 90,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     fontWeight: '500',
   },
   rowInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.2,
   },
   rowDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C6C6C8',
+    backgroundColor: colors.border,
   },
   presetSection: {
     marginBottom: 18,
@@ -273,7 +276,7 @@ const styles = StyleSheet.create({
   presetHeader: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textTransform: 'uppercase',
     letterSpacing: 0.2,
     marginBottom: 8,
@@ -284,7 +287,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   presetChip: {
-    backgroundColor: '#E3E3E8',
+    backgroundColor: colors.input,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
@@ -292,22 +295,22 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   presetChipActive: {
-    backgroundColor: '#E5F1FF',
-    borderColor: '#007AFF',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
   },
   presetChipText: {
     fontSize: 12,
-    color: '#3C3C43',
+    color: colors.text,
     fontWeight: '500',
   },
   presetChipTextActive: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '700',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFE5E5',
+    backgroundColor: colors.dangerSoft,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
@@ -317,16 +320,16 @@ const styles = StyleSheet.create({
   errorBoxText: {
     flex: 1,
     fontSize: 13,
-    color: '#FF3B30',
+    color: colors.danger,
     lineHeight: 18,
   },
   continueButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.outgoingBubble,
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: colors.outgoingBubble,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -336,14 +339,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   continueButtonText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: -0.3,
   },
   appleFooterNote: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 16,

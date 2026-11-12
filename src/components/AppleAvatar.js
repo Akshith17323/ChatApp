@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../context/ThemeContext';
 
 // Apple Messages contact avatar colors
 const AVATAR_COLORS = [
@@ -41,6 +42,7 @@ export default function AppleAvatar({
   isGroup = false,
   memberCount = 0,
 }) {
+  const { colors } = useAppTheme();
   const bgColor = getColorForString(name);
   const initials = getInitials(name);
   const fontSize = Math.floor(size * 0.4);
@@ -61,6 +63,7 @@ export default function AppleAvatar({
               height: subSize,
               borderRadius: subSize / 2,
               backgroundColor: '#5856D6',
+              borderColor: colors.background,
             },
           ]}
         >
@@ -76,6 +79,7 @@ export default function AppleAvatar({
               height: subSize,
               borderRadius: subSize / 2,
               backgroundColor: '#007AFF',
+              borderColor: colors.background,
             },
           ]}
         >
@@ -124,14 +128,11 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   groupCircleFront: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
 });
-

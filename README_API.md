@@ -126,6 +126,36 @@ The API module is located in `src/api/`:
   - `useMessages(conversationId)` (polls every 3s for live chat)
   - `useSendMessage()`
 
+### Frontend sending and appearance
+
+- Text and photo sends appear immediately with **Sending** or **Uploading photo** states.
+- Failed messages keep their content and attachments, with manual **Retry** and an **Edit** action for text. Retrying a photo message reuses its uploaded file ID when the upload already succeeded.
+- The outbox survives screen navigation during the signed-in session. It is not persisted across app restarts, and is cleared when signing out or changing servers/accounts.
+- A confirmed send stays visible until the existing message polling returns its server ID. Fetch errors do not hide pending or failed messages in the chat room.
+- The existing API has no idempotency key. There are no automatic POST retries; a timeout or server error prompts a duplicate-send warning before manual retry.
+- Request timeouts cover reading the full response body, not just waiting for headers. Retry/Edit confirmations work on native devices and in the browser.
+- **Settings → Appearance → System / Light / Dark** controls the entire app. The preference is saved locally; System follows device changes.
+- No backend routes, payloads, or authentication contracts have changed.
+
+Run `npm test`, `npm run lint`, and `npm run typecheck` for frontend checks. Native development builds need rebuilding after adding the appearance/storage modules.
+
+#### Verification results (2026-11-12)
+
+- Passed 21 automated tests, Expo lint, full frontend ESLint, TypeScript checks, and `git diff --check`.
+- Production bundles completed for iOS, Android, and web; native configuration introspection succeeded. These are not native builds or device tests.
+- Headless Chrome checks at 390×844 passed with local HTTP mocks: appearance persistence/system changes, optimistic sends and reconciliation, Retry/Edit, photos, navigation, sign-out during upload, and server switching. No runtime exceptions were reported; the real backend was not exercised.
+- The browser checks used a temporary HTML shell because the existing web export emitted bundles but no HTML. Production web routing/deployment was not changed.
+- `CI=1 npx expo install --check` still flags existing SDK patch mismatches, including Expo `58.0.22` versus `~58.0.24` and React Native `0.88.0` versus `0.88.1`. Dependency upgrades were left outside this feature change.
+- Native-device verification below remains to be done with a rebuilt development app.
+
+#### Device verification
+
+1. Send a text message; confirm its pending state changes to Sent without a duplicate after polling.
+2. Make the server unreachable, send text/photo, and confirm failure keeps the message and caption. Restore connectivity and retry; also try Edit while another draft exists.
+3. Navigate away and back before retrying, and rapidly tap Send/Retry to check duplicate-tap protection.
+4. Switch among System, Light, and Dark; check login, chat list, chat room, new chat, Settings, headers, keyboard, and image preview. Restart to verify the saved appearance.
+5. With System selected, change the device appearance. Sign out during a photo upload and check that it does not continue as another account.
+
 ---
 
 ## 4. Testing with Local Backend

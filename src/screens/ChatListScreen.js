@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useConversations, useUsers } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
 
 export default function ChatListScreen({ navigation }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const {
@@ -40,7 +43,7 @@ export default function ChatListScreen({ navigation }) {
     return map;
   }, [users]);
 
-  const getConversationTitle = (item) => {
+  const getConversationTitle = useCallback((item) => {
     if (item.name) return item.name;
 
     if (item.type === 'DM') {
@@ -52,7 +55,7 @@ export default function ChatListScreen({ navigation }) {
     }
 
     return 'Group Conversation';
-  };
+  }, [userMap, user?.id]);
 
   const formatAppleDate = (dateString) => {
     if (!dateString) return '';
@@ -93,7 +96,7 @@ export default function ChatListScreen({ navigation }) {
       const title = getConversationTitle(item).toLowerCase();
       return title.includes(query);
     });
-  }, [conversations, searchQuery, userMap, user?.id]);
+  }, [conversations, searchQuery, getConversationTitle]);
 
   const renderConversationItem = ({ item }) => {
     const title = getConversationTitle(item);
@@ -133,7 +136,7 @@ export default function ChatListScreen({ navigation }) {
               <Ionicons
                 name="chevron-forward"
                 size={14}
-                color="#C7C7CC"
+                color={colors.secondaryText}
                 style={styles.chevron}
               />
             </View>
@@ -162,7 +165,7 @@ export default function ChatListScreen({ navigation }) {
             style={styles.composeBtn}
             onPress={() => navigation.navigate('NewChat')}
           >
-            <Ionicons name="create-outline" size={24} color="#007AFF" />
+            <Ionicons name="create-outline" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -174,13 +177,13 @@ export default function ChatListScreen({ navigation }) {
         {/* Apple Capsule Search Bar */}
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={17} color="#8E8E93" style={styles.searchIcon} />
+            <Ionicons name="search" size={17} color={colors.secondaryText} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search"
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={colors.placeholder}
               clearButtonMode="while-editing"
               returnKeyType="search"
             />
@@ -190,10 +193,10 @@ export default function ChatListScreen({ navigation }) {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="close-circle" size={18} color="#8E8E93" />
+                <Ionicons name="close-circle" size={18} color={colors.secondaryText} />
               </TouchableOpacity>
             ) : (
-              <Ionicons name="mic" size={17} color="#8E8E93" style={styles.micIcon} />
+              <Ionicons name="mic" size={17} color={colors.secondaryText} style={styles.micIcon} />
             )}
           </View>
         </View>
@@ -201,12 +204,12 @@ export default function ChatListScreen({ navigation }) {
         {/* Main Content List */}
         {isLoading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.loadingText}>Loading Messages...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="alert-circle" size={48} color="#FF3B30" />
+            <Ionicons name="alert-circle" size={48} color={colors.danger} />
             <Text style={styles.errorTitle}>Messages Unavailable</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
@@ -216,7 +219,7 @@ export default function ChatListScreen({ navigation }) {
         ) : filteredConversations.length === 0 ? (
           <View style={styles.centerContainer}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="chatbubble-ellipses" size={40} color="#007AFF" />
+              <Ionicons name="chatbubble-ellipses" size={40} color={colors.primary} />
             </View>
             <Text style={styles.emptyTitle}>No Messages</Text>
             <Text style={styles.emptySubtitle}>
@@ -240,7 +243,8 @@ export default function ChatListScreen({ navigation }) {
               <RefreshControl
                 refreshing={isRefetching}
                 onRefresh={refetch}
-                tintColor="#007AFF"
+                tintColor={colors.primary}
+                colors={[colors.primary]}
               />
             }
           />
@@ -250,14 +254,14 @@ export default function ChatListScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   topNav: {
     flexDirection: 'row',
@@ -269,7 +273,7 @@ const styles = StyleSheet.create({
   },
   navActionText: {
     fontSize: 17,
-    color: '#007AFF',
+    color: colors.primary,
     letterSpacing: -0.4,
   },
   editBtn: {
@@ -287,7 +291,7 @@ const styles = StyleSheet.create({
   largeTitle: {
     fontSize: 34,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.6,
   },
   searchSection: {
@@ -297,7 +301,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3E3E8',
+    backgroundColor: colors.input,
     borderRadius: 10,
     paddingHorizontal: 10,
     height: 36,
@@ -308,7 +312,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.3,
     paddingVertical: 0,
   },
@@ -321,7 +325,7 @@ const styles = StyleSheet.create({
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingTop: 10,
   },
@@ -341,7 +345,7 @@ const styles = StyleSheet.create({
   chatTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.2,
     flex: 1,
     marginRight: 8,
@@ -352,7 +356,7 @@ const styles = StyleSheet.create({
   },
   chatTime: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     letterSpacing: -0.2,
   },
   chevron: {
@@ -360,7 +364,7 @@ const styles = StyleSheet.create({
   },
   chatSubtitle: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     lineHeight: 18,
     letterSpacing: -0.2,
     marginTop: 1,
@@ -372,7 +376,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: colors.separator,
   },
   centerContainer: {
     flex: 1,
@@ -383,17 +387,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.secondaryText,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
     marginTop: 12,
   },
   errorMessage: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 19,
@@ -402,11 +406,11 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingVertical: 8,
     paddingHorizontal: 20,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
   },
   retryBtnText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 15,
   },
@@ -414,7 +418,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#E5F1FF',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -422,24 +426,24 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.text,
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
   },
   newChatAppleBtn: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.outgoingBubble,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 22,
   },
   newChatAppleBtnText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '600',
   },

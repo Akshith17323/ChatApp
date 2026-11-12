@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { setApiConfig, getApiConfig, DEFAULT_BASE_URL } from '../api/config';
+import React, { createContext, useContext, useState } from 'react';
+import { setApiConfig, DEFAULT_BASE_URL } from '../api/config';
 import { userApi } from '../api/userApi';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -29,6 +29,10 @@ export function AuthProvider({ children }) {
     const cleanUrl = url.replace(/\/+$/, '');
     setBaseUrlState(cleanUrl);
     setApiConfig({ baseUrl: cleanUrl });
+    if (cleanUrl !== baseUrl) {
+      // Query keys are session-local too; do not show another server's cached chats.
+      queryClient.clear();
+    }
   };
 
   const login = async (uName, pWord, customUrl) => {
