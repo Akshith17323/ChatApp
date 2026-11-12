@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,18 +19,32 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
-import { useMessages, useSendMessage, useUsers } from '../api/hooks';
-import { fileApi, getAuthHeader, getApiConfig } from '../api';
+import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
+import { useMessageOutbox } from '../context/MessageOutboxContext';
+import { useMessages, useUsers } from '../api/hooks';
+import { getAuthHeader, getApiConfig } from '../api';
+import { mergeChatMessages } from '../utils/messageOutbox';
 import AppleAvatar from '../components/AppleAvatar';
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { conversationId, title, type, memberCount } = route.params;
   const { user } = useAuth();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isPickingImage, setIsPickingImage] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const flatListRef = useRef(null);
+  const inputRef = useRef('');
+  const pickerActive = useRef(false);
+  const isNearBottom = useRef(true);
+  const shouldScrollToEnd = useRef(true);
+
+  const setComposerText = useCallback((text) => {
+    inputRef.current = text;
+    setInputText(text);
+  }, []);
 
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -39,6 +53,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { baseUrl } = getApiConfig();
 
   const getMessageImageUri = (item) => {
+    if (item.localImageUri) return item.localImageUri;
     if (item.imageInfo) {
       return item.imageInfo;
     }
@@ -54,13 +69,24 @@ export default function ChatRoomScreen({ route, navigation }) {
   const {
     data: messagesResponse,
     isLoading,
-    isRefetching,
     refetch,
     error,
   } = useMessages(conversationId);
 
-  const { mutate: sendMessage, isPending: isSending } = useSendMessage();
+  const { outgoingMessages, isSending, enqueue, retry, discard, acknowledge } =
+    useMessageOutbox(conversationId);
+  const isUploadingImage = outgoingMessages.some((message) => message.localStatus === 'uploading');
+  const isSendBusy = isSending || isPickingImage;
   const { data: users } = useUsers();
+
+  const messages = useMemo(
+    () => mergeChatMessages(messagesResponse?.data || [], outgoingMessages),
+    [messagesResponse?.data, outgoingMessages]
+  );
+
+  useEffect(() => {
+    if (messagesResponse?.data) acknowledge(messagesResponse.data);
+  }, [messagesResponse?.data, outgoingMessages, acknowledge]);
 
   const userMap = React.useMemo(() => {
     const map = new Map();
@@ -78,9 +104,10 @@ export default function ChatRoomScreen({ route, navigation }) {
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => {
         setIsKeyboardVisible(true);
-        setTimeout(() => {
+        if (isNearBottom.current) {
+          shouldScrollToEnd.current = true;
           flatListRef.current?.scrollToEnd({ animated: true });
-        }, 80);
+        }
       }
     );
     const hideSub = Keyboard.addListener(
@@ -111,16 +138,16 @@ export default function ChatRoomScreen({ route, navigation }) {
             <Ionicons
               name="chevron-forward"
               size={10}
-              color="#8E8E93"
+              color={colors.secondaryText}
               style={styles.headerChevron}
             />
           </View>
         </View>
       ),
       headerBackTitle: 'Messages',
-      headerTintColor: '#007AFF',
+      headerTintColor: colors.primary,
       headerStyle: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
       },
       headerShadowVisible: true,
       headerRight: () => (
@@ -128,32 +155,69 @@ export default function ChatRoomScreen({ route, navigation }) {
           onPress={() => refetch()}
           style={styles.headerRefreshBtn}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh messages"
         >
-          <Ionicons name="videocam-outline" size={24} color="#007AFF" />
+          <Ionicons name="refresh-outline" size={24} color={colors.primary} />
         </TouchableOpacity>
       ),
     });
-  }, [navigation, title, type, memberCount, refetch]);
+  }, [navigation, title, type, memberCount, refetch, colors, styles]);
 
   const handleSend = () => {
-    if (!inputText.trim() || isSending) return;
-    const content = inputText.trim();
-    setInputText('');
+    const content = inputRef.current.trim();
+    if (!content || isSendBusy || pickerActive.current) return;
+    shouldScrollToEnd.current = true;
+    // Clear only after the outbox has retained a retryable copy of the message.
+    if (enqueue({ conversation_id: conversationId, content })) {
+      setComposerText('');
+    }
+  };
 
-    sendMessage(
-      { conversation_id: conversationId, content },
-      {
-        onSuccess: () => {
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        },
-      }
-    );
+  const handleRetry = (message) => {
+    if (isSendBusy) return;
+    const retryMessage = () => {
+      shouldScrollToEnd.current = true;
+      retry(message.clientId);
+    };
+    if (message.deliveryUncertain) {
+      confirmMessageAction(
+        'Delivery Unconfirmed',
+        'The server may have received this message before the connection failed. Retrying could send it again.',
+        'Retry Anyway',
+        retryMessage
+      );
+    } else {
+      retryMessage();
+    }
+  };
+
+  const handleEditFailed = (message) => {
+    const restore = () => {
+      if (discard(message.clientId)) setComposerText(message.content || '');
+    };
+    const warnings = [];
+    if (message.deliveryUncertain) {
+      warnings.push('The server may have received this message. Sending it again could create a duplicate.');
+    }
+    if (inputRef.current.trim()) {
+      warnings.push('Restore this failed message instead of your current draft?');
+    }
+    if (warnings.length > 0) {
+      confirmMessageAction('Restore Failed Message?', warnings.join('\n\n'), 'Restore', restore);
+    } else {
+      restore();
+    }
   };
 
   const handleAttachmentPress = () => {
-    if (isUploadingImage || isSending) return;
+    if (isSendBusy || pickerActive.current) return;
+
+    // Web pickers must open directly from a user interaction; native Alert is a no-op on web.
+    if (Platform.OS === 'web') {
+      void handlePickMedia('library');
+      return;
+    }
 
     Alert.alert(
       'Send Image',
@@ -176,13 +240,17 @@ export default function ChatRoomScreen({ route, navigation }) {
   };
 
   const handlePickMedia = async (source) => {
+    if (isSendBusy || pickerActive.current) return;
+    pickerActive.current = true;
+    setIsPickingImage(true);
+    const draft = inputRef.current;
     try {
       let result;
 
       if (source === 'camera') {
         const cameraPerm = await ImagePicker.requestCameraPermissionsAsync();
         if (!cameraPerm.granted) {
-          Alert.alert(
+          showMessageAlert(
             'Camera Access Needed',
             'Please allow camera access in your settings to take and send photos.'
           );
@@ -196,15 +264,6 @@ export default function ChatRoomScreen({ route, navigation }) {
           base64: true,
         });
       } else {
-        const libraryPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!libraryPerm.granted) {
-          Alert.alert(
-            'Photo Access Needed',
-            'Please allow photo library access in your settings to select and send images.'
-          );
-          return;
-        }
-
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsEditing: true,
@@ -219,56 +278,37 @@ export default function ChatRoomScreen({ route, navigation }) {
 
       const asset = result.assets[0];
       if (!asset.base64) {
-        Alert.alert('Error', 'Unable to retrieve image data.');
+        showMessageAlert('Error', 'Unable to retrieve image data.');
         return;
       }
-
-      setIsUploadingImage(true);
 
       const mimeType = asset.mimeType || 'image/jpeg';
       const fileName = asset.fileName || `photo_${Date.now()}.jpg`;
       const base64Data = `data:${mimeType};base64,${asset.base64}`;
 
-      // 1. Upload file to backend
-      const uploadedFile = await fileApi.uploadFile({
-        file_name: fileName,
-        mime_type: mimeType,
-        data: base64Data,
-      });
-
-      // 2. Send message with file_id and optional caption from inputText
-      const caption = inputText.trim();
-      if (caption) {
-        setInputText('');
-      }
-
-      sendMessage(
+      shouldScrollToEnd.current = true;
+      const clientId = enqueue(
         {
           conversation_id: conversationId,
-          file_id: uploadedFile.id,
-          content: caption || undefined,
+          content: draft.trim() || undefined,
         },
         {
-          onSuccess: () => {
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          },
-          onError: (err) => {
-            Alert.alert('Send Failed', err?.message || 'Could not send image message');
-          },
-          onSettled: () => {
-            setIsUploadingImage(false);
+          localImageUri: asset.uri,
+          attachment: {
+            file_name: fileName,
+            mime_type: mimeType,
+            data: base64Data,
           },
         }
       );
+      if (clientId && inputRef.current === draft) setComposerText('');
     } catch (err) {
-      setIsUploadingImage(false);
-      Alert.alert('Upload Failed', err?.message || 'Failed to select or upload image.');
+      showMessageAlert('Photo Unavailable', err?.message || 'Failed to select an image. Your draft has been kept.');
+    } finally {
+      pickerActive.current = false;
+      setIsPickingImage(false);
     }
   };
-
-  const messages = messagesResponse?.data || [];
 
   const formatMessageTime = (dateString) => {
     if (!dateString) return '';
@@ -288,9 +328,11 @@ export default function ChatRoomScreen({ route, navigation }) {
     const hasImage = !!imageUri;
     const hasText = !!(item.content && item.content.trim().length > 0);
     const timeStr = formatMessageTime(item.createdAt);
+    const isPending = item.localStatus === 'sending' || item.localStatus === 'uploading';
+    const isFailed = item.localStatus === 'failed';
 
-    let appleStatus = null;
-    if (isMine && item.status) {
+    let appleStatus = isMine && !isPending && !isFailed ? 'Sent' : null;
+    if (appleStatus && item.status) {
       const otherStatuses = Object.entries(item.status).filter(
         ([id]) => id !== user?.id
       );
@@ -300,8 +342,6 @@ export default function ChatRoomScreen({ route, navigation }) {
         if (anyRead) appleStatus = 'Read';
         else if (anyDelivered) appleStatus = 'Delivered';
         else appleStatus = 'Sent';
-      } else {
-        appleStatus = 'Delivered';
       }
     }
 
@@ -322,6 +362,7 @@ export default function ChatRoomScreen({ route, navigation }) {
               styles.bubble,
               isMine ? styles.myBubble : styles.otherBubble,
               hasImage && styles.imageBubble,
+              isFailed && styles.failedBubble,
             ]}
           >
             {hasImage && (
@@ -333,7 +374,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                   source={{
                     uri: imageUri,
                     headers:
-                      authHeader && !imageUri.startsWith('data:')
+                      authHeader && imageUri.startsWith(`${baseUrl}/`)
                         ? { Authorization: authHeader }
                         : undefined,
                   }}
@@ -366,17 +407,59 @@ export default function ChatRoomScreen({ route, navigation }) {
                   {timeStr}
                 </Text>
               ) : null}
-              {isMine && (
+              {isMine && !isPending && !isFailed && (
                 <Ionicons
                   name={appleStatus === 'Read' ? 'checkmark-done' : 'checkmark'}
                   size={12}
-                  color={isMine ? 'rgba(255, 255, 255, 0.7)' : '#8E8E93'}
+                  color={colors.onPrimaryMuted}
                   style={styles.checkIcon}
                 />
               )}
             </View>
           </View>
         </View>
+
+        {isPending && (
+          <View style={styles.localStatusRow} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.localStatusText}>
+              {item.localStatus === 'uploading' ? 'Uploading photo…' : 'Sending…'}
+            </Text>
+          </View>
+        )}
+
+        {isFailed && (
+          <View style={styles.failedMessageInfo} accessibilityLiveRegion="polite">
+            <Text style={styles.failedMessageTitle}>
+              {item.deliveryUncertain ? 'Delivery unconfirmed' : 'Not sent'}
+            </Text>
+            <Text style={styles.failedMessageError} numberOfLines={3}>{item.error}</Text>
+            <View style={styles.failedMessageActions}>
+              <TouchableOpacity
+                style={[styles.messageAction, isSendBusy && styles.sendButtonDisabled]}
+                onPress={() => handleRetry(item)}
+                disabled={isSendBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Retry sending this message"
+                accessibilityState={{ disabled: isSendBusy }}
+              >
+                <Ionicons name="refresh" size={15} color={colors.primary} />
+                <Text style={styles.messageActionText}>Retry</Text>
+              </TouchableOpacity>
+              {!hasImage && hasText && (
+                <TouchableOpacity
+                  style={styles.messageAction}
+                  onPress={() => handleEditFailed(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Restore failed message to the composer"
+                >
+                  <Ionicons name="pencil" size={15} color={colors.primary} />
+                  <Text style={styles.messageActionText}>Edit</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {isMine && isLastMessage && appleStatus && (
           <Text style={styles.appleStatusText}>{appleStatus}</Text>
@@ -393,14 +476,14 @@ export default function ChatRoomScreen({ route, navigation }) {
         style={styles.container}
       >
         {/* Messages List Area */}
-        {isLoading ? (
+        {isLoading && messages.length === 0 ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.loadingText}>Loading iMessages...</Text>
           </View>
-        ) : error ? (
+        ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="alert-circle-outline" size={40} color="#FF3B30" />
+            <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
             <Text style={styles.errorTitle}>Could not load messages</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
@@ -416,11 +499,29 @@ export default function ChatRoomScreen({ route, navigation }) {
             contentContainerStyle={styles.messagesList}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={() => (
-              <View style={styles.dateStampContainer}>
-                <Text style={styles.dateStampText}>iMessage</Text>
+            ListHeaderComponent={
+              <View>
+                <View style={styles.dateStampContainer}>
+                  <Text style={styles.dateStampText}>iMessage</Text>
+                </View>
+                {error && (
+                  <View style={styles.refreshErrorBanner}>
+                    <Text style={styles.refreshErrorText}>
+                      Could not refresh messages. Your messages are still shown below.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => refetch()}
+                      style={styles.messageAction}
+                      accessibilityRole="button"
+                      accessibilityLabel="Try refreshing messages again"
+                    >
+                      <Text style={styles.messageActionText}>Try Again</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
               </View>
-            )}
+            }
             ListEmptyComponent={() => (
               <View style={styles.emptyChatContainer}>
                 <AppleAvatar
@@ -433,13 +534,21 @@ export default function ChatRoomScreen({ route, navigation }) {
                 <Text style={styles.emptyChatSubtitle}>
                   {type === 'GROUP'
                     ? `Group conversation with ${memberCount || 'several'} members.`
-                    : 'End-to-end conversation. Say hello! 👋'}
+                    : 'Direct conversation. Say hello! 👋'}
                 </Text>
               </View>
             )}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
+            onScroll={({ nativeEvent }) => {
+              const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+              isNearBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+            }}
+            scrollEventThrottle={16}
+            onContentSizeChange={() => {
+              if (isNearBottom.current || shouldScrollToEnd.current) {
+                flatListRef.current?.scrollToEnd({ animated: false });
+                shouldScrollToEnd.current = false;
+              }
+            }}
           />
         )}
 
@@ -459,12 +568,15 @@ export default function ChatRoomScreen({ route, navigation }) {
             style={styles.plusButton}
             activeOpacity={0.6}
             onPress={handleAttachmentPress}
-            disabled={isUploadingImage || isSending}
+            disabled={isSendBusy}
+            accessibilityRole="button"
+            accessibilityLabel="Attach a photo"
+            accessibilityState={{ disabled: isSendBusy }}
           >
-            {isUploadingImage ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+            {isUploadingImage || isPickingImage ? (
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="add" size={20} color="#3C3C43" />
+              <Ionicons name="add" size={20} color={colors.text} />
             )}
           </TouchableOpacity>
 
@@ -473,9 +585,10 @@ export default function ChatRoomScreen({ route, navigation }) {
             <TextInput
               style={styles.textInput}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={setComposerText}
               placeholder="iMessage"
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={colors.placeholder}
+              accessibilityLabel="Message"
               multiline
               maxLength={1000}
             />
@@ -485,21 +598,24 @@ export default function ChatRoomScreen({ route, navigation }) {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  isSending && styles.sendButtonDisabled,
+                  isSendBusy && styles.sendButtonDisabled,
                 ]}
                 onPress={handleSend}
-                disabled={isSending}
+                disabled={isSendBusy}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                accessibilityState={{ disabled: isSendBusy }}
               >
-                {isSending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                {isSendBusy ? (
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
-                  <Ionicons name="arrow-up" size={17} color="#FFFFFF" />
+                  <Ionicons name="arrow-up" size={17} color={colors.onPrimary} />
                 )}
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.audioWaveBtn} activeOpacity={0.6}>
-                <Ionicons name="mic" size={19} color="#8E8E93" />
+                <Ionicons name="mic" size={19} color={colors.secondaryText} />
               </TouchableOpacity>
             )}
           </View>
@@ -527,7 +643,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 source={{
                   uri: previewImage,
                   headers:
-                    authHeader && !previewImage.startsWith('data:')
+                    authHeader && previewImage.startsWith(`${baseUrl}/`)
                       ? { Authorization: authHeader }
                       : undefined,
                 }}
@@ -542,14 +658,33 @@ export default function ChatRoomScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+function confirmMessageAction(title, message, confirmText, onConfirm) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: confirmText, onPress: onConfirm },
+  ]);
+}
+
+function showMessageAlert(title, message) {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
+
+const createStyles = (colors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   headerTitleContainer: {
     alignItems: 'center',
@@ -564,7 +699,7 @@ const styles = StyleSheet.create({
   headerNameText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.1,
     maxWidth: 160,
   },
@@ -582,7 +717,7 @@ const styles = StyleSheet.create({
   dateStampText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textTransform: 'uppercase',
     letterSpacing: 0.2,
   },
@@ -596,7 +731,7 @@ const styles = StyleSheet.create({
   },
   groupSenderLabel: {
     fontSize: 11,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     marginBottom: 2,
     marginLeft: 8,
   },
@@ -616,11 +751,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   myBubble: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.outgoingBubble,
     borderBottomRightRadius: 4,
   },
   otherBubble: {
-    backgroundColor: '#E9E9EB',
+    backgroundColor: colors.incomingBubble,
     borderBottomLeftRadius: 4,
   },
   bubbleText: {
@@ -629,15 +764,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   myBubbleText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   otherBubbleText: {
-    color: '#000000',
+    color: colors.text,
   },
   appleStatusText: {
     alignSelf: 'flex-end',
     fontSize: 11,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     marginTop: 2,
     marginRight: 4,
     letterSpacing: -0.1,
@@ -651,17 +786,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.secondaryText,
   },
   errorTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
     marginTop: 10,
   },
   errorMessage: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -669,11 +804,11 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingVertical: 6,
     paddingHorizontal: 16,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
   },
   retryBtnText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -682,16 +817,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 10,
     paddingTop: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#C6C6C8',
+    borderTopColor: colors.border,
     gap: 8,
   },
   plusButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E9E9EB',
+    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 2,
@@ -702,10 +837,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     minHeight: 36,
     maxHeight: 120,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#C6C6C8',
+    borderColor: colors.border,
     paddingLeft: 14,
     paddingRight: 4,
     paddingVertical: 3,
@@ -713,7 +848,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.3,
     paddingTop: Platform.OS === 'android' ? 4 : 5,
     paddingBottom: Platform.OS === 'android' ? 4 : 5,
@@ -723,7 +858,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.outgoingBubble,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 6,
@@ -749,7 +884,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 14,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: colors.surfaceMuted,
   },
   captionText: {
     marginTop: 6,
@@ -767,10 +902,10 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   myBubbleTimeText: {
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: colors.onPrimaryMuted,
   },
   otherBubbleTimeText: {
-    color: '#8E8E93',
+    color: colors.secondaryText,
   },
   checkIcon: {
     marginLeft: 1,
@@ -784,13 +919,13 @@ const styles = StyleSheet.create({
   emptyChatTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.text,
     marginTop: 12,
     letterSpacing: -0.3,
   },
   emptyChatSubtitle: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     marginTop: 4,
     maxWidth: 240,
@@ -801,6 +936,71 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  failedBubble: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  localStatusRow: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 5,
+    marginBottom: 4,
+  },
+  localStatusText: {
+    color: colors.secondaryText,
+    fontSize: 12,
+  },
+  failedMessageInfo: {
+    alignSelf: 'flex-end',
+    maxWidth: '80%',
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  failedMessageTitle: {
+    color: colors.danger,
+    fontWeight: '600',
+    fontSize: 12,
+    textAlign: 'right',
+  },
+  failedMessageError: {
+    color: colors.secondaryText,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'right',
+    marginTop: 3,
+  },
+  failedMessageActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  messageAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    minHeight: 44,
+    paddingHorizontal: 8,
+  },
+  messageActionText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  refreshErrorBanner: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    marginBottom: 14,
+  },
+  refreshErrorText: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 18,
   },
   modalSafeArea: {
     flex: 1,

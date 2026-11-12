@@ -9,7 +9,6 @@ import { conversationApi } from './conversationApi';
 import { messageApi } from './messageApi';
 import {
   User,
-  Conversation,
   CreateConversationPayload,
   CreateMessagePayload,
   PaginatedMessagesResponse,
@@ -93,7 +92,7 @@ export function useCreateConversation() {
   return useMutation({
     mutationFn: (payload: CreateConversationPayload) =>
       conversationApi.createConversation(payload),
-    onSuccess: (newConv: Conversation) => {
+    onSuccess: () => {
       // Invalidate conversation list so the new chat shows up immediately
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.conversations });
     },
@@ -132,6 +131,7 @@ export function useSendMessage() {
 
   return useMutation({
     mutationFn: (payload: CreateMessagePayload) => messageApi.sendMessage(payload),
+    retry: false,
     onSuccess: (sentMessage, variables) => {
       // Immediately refetch or invalidate message queries for this conversation
       queryClient.invalidateQueries({

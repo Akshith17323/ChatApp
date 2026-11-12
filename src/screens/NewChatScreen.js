@@ -12,10 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useUsers, useCreateConversation } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
 
 export default function NewChatScreen({ navigation }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { user } = useAuth();
   const { data: users, isLoading, error, refetch } = useUsers();
   const { mutate: createConversation, isPending: isCreating } = useCreateConversation();
@@ -131,7 +134,7 @@ export default function NewChatScreen({ navigation }) {
 
         <View style={styles.actionCol}>
           {mode === 'DM' ? (
-            <Ionicons name="chatbubble" size={18} color="#007AFF" />
+            <Ionicons name="chatbubble" size={18} color={colors.primary} />
           ) : (
             <View
               style={[
@@ -140,7 +143,7 @@ export default function NewChatScreen({ navigation }) {
               ]}
             >
               {isSelected && (
-                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
               )}
             </View>
           )}
@@ -198,7 +201,7 @@ export default function NewChatScreen({ navigation }) {
               value={groupName}
               onChangeText={setGroupName}
               placeholder="Group Name (e.g. Project Team)"
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={colors.placeholder}
             />
             <TouchableOpacity
               style={[
@@ -210,7 +213,7 @@ export default function NewChatScreen({ navigation }) {
               disabled={selectedUserIds.length === 0 || !groupName.trim() || isCreating}
             >
               {isCreating ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.onPrimary} size="small" />
               ) : (
                 <Text style={styles.createGroupAppleBtnText}>
                   Create ({selectedUserIds.length})
@@ -236,7 +239,7 @@ export default function NewChatScreen({ navigation }) {
                     onPress={() => handleRemoveChip(id)}
                   >
                     <Text style={styles.contactChipText}>{u?.name || 'User'}</Text>
-                    <Ionicons name="close-circle" size={14} color="#007AFF" />
+                    <Ionicons name="close-circle" size={14} color={colors.primary} />
                   </TouchableOpacity>
                 );
               })}
@@ -248,7 +251,7 @@ export default function NewChatScreen({ navigation }) {
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder={selectedUserIds.length === 0 ? 'Search name' : ''}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={colors.placeholder}
             autoCapitalize="none"
           />
         </View>
@@ -256,14 +259,14 @@ export default function NewChatScreen({ navigation }) {
         {/* User list */}
         {isLoading || isCreating ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.loadingText}>
               {isCreating ? 'Creating iMessage...' : 'Loading contacts...'}
             </Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="alert-circle-outline" size={38} color="#FF3B30" />
+            <Ionicons name="alert-circle-outline" size={38} color={colors.danger} />
             <Text style={styles.errorText}>{error.message}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
               <Text style={styles.retryBtnText}>Try Again</Text>
@@ -287,23 +290,23 @@ export default function NewChatScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   segmentContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#E3E3E8',
+    backgroundColor: colors.input,
     borderRadius: 9,
     padding: 2,
     height: 32,
@@ -315,8 +318,8 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   segmentTabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.12,
     shadowRadius: 2,
@@ -325,12 +328,12 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.2,
   },
   segmentTextActive: {
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
   },
   groupHeaderBar: {
     flexDirection: 'row',
@@ -338,29 +341,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
+    borderBottomColor: colors.border,
     gap: 8,
   },
   groupNameInput: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 7,
     fontSize: 15,
-    color: '#000000',
+    color: colors.text,
   },
   createGroupAppleBtn: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.outgoingBubble,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 16,
   },
   createGroupAppleBtnDisabled: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: colors.surfaceMuted,
+    opacity: 0.55,
   },
   createGroupAppleBtnText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontWeight: '600',
     fontSize: 13,
   },
@@ -370,13 +374,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
+    borderBottomColor: colors.border,
     flexWrap: 'wrap',
     gap: 6,
   },
   toLabel: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     marginRight: 4,
   },
   chipsRow: {
@@ -387,7 +391,7 @@ const styles = StyleSheet.create({
   contactChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5F1FF',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -395,13 +399,13 @@ const styles = StyleSheet.create({
   },
   contactChipText: {
     fontSize: 13,
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '500',
   },
   toTextInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     minWidth: 100,
     paddingVertical: 0,
   },
@@ -424,12 +428,12 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.3,
   },
   userBio: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     marginTop: 2,
   },
   separator: {
@@ -438,7 +442,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: -16,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: colors.separator,
   },
   actionCol: {
     paddingLeft: 8,
@@ -449,13 +453,13 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: '#C6C6C8',
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxCircleSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: colors.outgoingBubble,
+    borderColor: colors.outgoingBubble,
   },
   centerContainer: {
     flex: 1,
@@ -466,26 +470,26 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.secondaryText,
   },
   errorText: {
     fontSize: 14,
-    color: '#FF3B30',
+    color: colors.danger,
     textAlign: 'center',
   },
   retryBtn: {
     marginTop: 12,
     paddingVertical: 6,
     paddingHorizontal: 14,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
   },
   retryBtnText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '600',
   },
   emptyText: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.secondaryText,
   },
 });

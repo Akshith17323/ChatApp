@@ -3,20 +3,22 @@ import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../context/ThemeContext';
 import ChatStack from './ChatStack';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const { colors } = useAppTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.secondaryText,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E5EA',
+          backgroundColor: colors.surface,
+          borderTopColor: colors.separator,
           borderTopWidth: 0.5,
           elevation: 8,
           height: Platform.OS === 'android' ? 60 : 84,
@@ -51,8 +53,8 @@ export default function TabNavigator() {
             tabBarStyle: shouldHideTabBar
               ? { display: 'none' }
               : {
-                  backgroundColor: '#FFFFFF',
-                  borderTopColor: '#E5E5EA',
+                  backgroundColor: colors.surface,
+                  borderTopColor: colors.separator,
                   borderTopWidth: 0.5,
                   elevation: 8,
                   height: Platform.OS === 'android' ? 60 : 84,

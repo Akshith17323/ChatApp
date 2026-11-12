@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme } from '../context/ThemeContext';
 import AuthScreen from '../screens/AuthScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
@@ -10,15 +11,16 @@ const Stack = createNativeStackNavigator();
 
 export default function ChatStack() {
   const { isAuthenticated } = useAuth();
+  const { colors } = useAppTheme();
 
   return (
     <Stack.Navigator
       screenOptions={{
-        headerTintColor: '#007AFF',
+        headerTintColor: colors.primary,
         headerBackTitle: 'Messages',
         headerTitleAlign: 'center',
         headerStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.surface,
         },
       }}
     >

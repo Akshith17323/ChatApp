@@ -8,15 +8,23 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { userApi } from '../api/userApi';
 import AppleAvatar from '../components/AppleAvatar';
 
+const APPEARANCE_OPTIONS = [
+  { value: 'system', label: 'System', icon: 'phone-portrait-outline' },
+  { value: 'light', label: 'Light', icon: 'sunny-outline' },
+  { value: 'dark', label: 'Dark', icon: 'moon-outline' },
+];
+
 export default function SettingsScreen() {
+  const { colors, themeMode, setThemeMode, storageError } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { user, username, baseUrl, setServerUrl, logout } = useAuth();
   const [editingUrl, setEditingUrl] = useState(baseUrl);
   const [testingPing, setTestingPing] = useState(false);
@@ -73,9 +81,35 @@ export default function SettingsScreen() {
                 </Text>
               ) : null}
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+            <Ionicons name="chevron-forward" size={18} color={colors.secondaryText} />
           </View>
         </View>
+
+        <Text style={styles.sectionHeader}>APPEARANCE</Text>
+        <View style={styles.groupedCard} accessibilityRole="radiogroup">
+          {APPEARANCE_OPTIONS.map((option, index) => (
+            <React.Fragment key={option.value}>
+              {index > 0 && <View style={styles.rowDivider} />}
+              <TouchableOpacity
+                style={styles.appearanceRow}
+                onPress={() => setThemeMode(option.value)}
+                accessibilityRole="radio"
+                accessibilityLabel={`${option.label} appearance`}
+                accessibilityState={{ checked: themeMode === option.value }}
+                activeOpacity={0.6}
+              >
+                <Ionicons name={option.icon} size={21} color={colors.primary} />
+                <Text style={styles.appearanceLabel}>{option.label}</Text>
+                {themeMode === option.value && (
+                  <Ionicons name="checkmark" size={21} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            </React.Fragment>
+          ))}
+        </View>
+        <Text style={styles.appearanceNote}>
+          {storageError || 'System follows your device. Your selection is saved on this device.'}
+        </Text>
 
         {/* Server Configuration Section */}
         <Text style={styles.sectionHeader}>SERVER CONFIGURATION</Text>
@@ -87,7 +121,7 @@ export default function SettingsScreen() {
               value={editingUrl}
               onChangeText={setEditingUrl}
               placeholder="http://10.7.1.51:3000"
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={colors.placeholder}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -101,7 +135,7 @@ export default function SettingsScreen() {
             activeOpacity={0.6}
           >
             <Text style={styles.actionRowText}>Apply Server URL</Text>
-            <Ionicons name="cloud-upload-outline" size={19} color="#007AFF" />
+            <Ionicons name="cloud-upload-outline" size={19} color={colors.primary} />
           </TouchableOpacity>
 
           <View style={styles.rowDivider} />
@@ -114,9 +148,9 @@ export default function SettingsScreen() {
           >
             <Text style={styles.actionRowText}>Test Connection</Text>
             {testingPing ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="pulse-outline" size={19} color="#007AFF" />
+              <Ionicons name="pulse-outline" size={19} color={colors.primary} />
             )}
           </TouchableOpacity>
         </View>
@@ -183,7 +217,7 @@ export default function SettingsScreen() {
             <Ionicons
               name={pingResult.success ? 'checkmark-circle' : 'close-circle'}
               size={18}
-              color={pingResult.success ? '#34C759' : '#FF3B30'}
+              color={pingResult.success ? colors.success : colors.danger}
             />
             <Text
               style={[
@@ -235,10 +269,10 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.groupedBackground,
   },
   container: {
     flex: 1,
@@ -251,24 +285,24 @@ const styles = StyleSheet.create({
   largeTitle: {
     fontSize: 34,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.6,
     marginBottom: 16,
   },
   sectionHeader: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#8E8E93',
+    color: colors.secondaryText,
     letterSpacing: 0.2,
     marginTop: 22,
     marginBottom: 6,
     marginLeft: 14,
   },
   groupedCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
@@ -286,17 +320,17 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.3,
   },
   profileSubtext: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     marginTop: 2,
   },
   profileBio: {
     fontSize: 13,
-    color: '#3C3C43',
+    color: colors.secondaryText,
     marginTop: 3,
   },
   fieldRow: {
@@ -308,13 +342,13 @@ const styles = StyleSheet.create({
   fieldLabel: {
     width: 60,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     fontWeight: '400',
   },
   fieldInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
     letterSpacing: -0.2,
   },
   actionRow: {
@@ -326,7 +360,7 @@ const styles = StyleSheet.create({
   },
   actionRowText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: colors.primary,
     letterSpacing: -0.3,
   },
   dangerRow: {
@@ -335,7 +369,7 @@ const styles = StyleSheet.create({
   },
   dangerRowText: {
     fontSize: 16,
-    color: '#FF3B30',
+    color: colors.danger,
     fontWeight: '500',
     letterSpacing: -0.3,
   },
@@ -348,15 +382,15 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    color: '#000000',
+    color: colors.text,
   },
   infoValue: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.secondaryText,
   },
   rowDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C6C6C8',
+    backgroundColor: colors.border,
     marginLeft: 16,
   },
   presetsRow: {
@@ -368,7 +402,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   presetChip: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: colors.surfaceMuted,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
@@ -376,16 +410,16 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   presetChipActive: {
-    backgroundColor: '#E5F1FF',
-    borderColor: '#007AFF',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
   },
   presetChipText: {
     fontSize: 12,
-    color: '#3C3C43',
+    color: colors.text,
     fontWeight: '500',
   },
   presetChipTextActive: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '700',
   },
   statusBanner: {
@@ -397,10 +431,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   successBanner: {
-    backgroundColor: '#EAF8EE',
+    backgroundColor: colors.successSoft,
   },
   errorBanner: {
-    backgroundColor: '#FFEBEA',
+    backgroundColor: colors.dangerSoft,
   },
   statusBannerText: {
     fontSize: 13,
@@ -408,17 +442,36 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   successText: {
-    color: '#28A745',
+    color: colors.success,
   },
   errorText: {
-    color: '#FF3B30',
+    color: colors.danger,
   },
   footerNote: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.secondaryText,
     textAlign: 'center',
     marginTop: 24,
     paddingHorizontal: 20,
     lineHeight: 16,
+  },
+  appearanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  appearanceLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  appearanceNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.secondaryText,
+    marginHorizontal: 14,
+    marginTop: 8,
   },
 });

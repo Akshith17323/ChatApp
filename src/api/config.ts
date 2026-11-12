@@ -1,4 +1,4 @@
-import { ApiConfig } from './types';
+import type { ApiConfig } from './types';
 
 export const DEFAULT_BASE_URL = 'http://10.7.1.51:3000';
 
@@ -72,8 +72,6 @@ export async function apiFetch<T>(
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
     // Handle 204 No Content
     if (response.status === 204) {
       return {} as T;
@@ -99,7 +97,6 @@ export async function apiFetch<T>(
 
     return responseData as T;
   } catch (error: any) {
-    clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
       throw new Error(
         `Connection timed out. Could not reach ${url}. Please verify your device is connected to the same Wi-Fi/network and the server is running.`
@@ -115,5 +112,8 @@ export async function apiFetch<T>(
       );
     }
     throw error;
+  } finally {
+    // Keep the timeout active while reading the body, not only until headers arrive.
+    clearTimeout(timeoutId);
   }
 }
