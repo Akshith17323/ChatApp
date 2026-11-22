@@ -301,3 +301,34 @@ test('message delete: non-existent message returns 404 Not Found', async () => {
 
   await assert.rejects(service.deleteMessage('msg-nonexistent', ALICE), hasStatus(404));
 });
+
+test('bot service: routes through messageService to broadcast on WebSockets when present', async () => {
+  const { BotService } = require('../dist/bot/bot.service');
+  let dispatched = null;
+  const mockMessageService = {
+    createMessage: async (dto, senderId) => {
+      dispatched = { dto, senderId };
+      return { id: 'bot-msg-1' };
+    },
+  };
+  const mockPrisma = {
+    user: {
+      findUnique: async () => ({ id: 'bot-id', name: 'FactBot', phone: null }),
+      findMany: async () => [{ id: 'user-alice', name: 'alice' }],
+    },
+    conversation: {
+      findFirst: async () => ({ id: 'conv-dm-bot', name: '[DM] FactBot', participants_ids: ['bot-id', 'user-alice'] }),
+    },
+  };
+
+  const botService = new BotService(mockPrisma, mockMessageService);
+  await botService.onModuleInit();
+  botService.onModuleDestroy();
+
+  await botService['sendBotMessages']();
+
+  assert.ok(dispatched);
+  assert.equal(dispatched.senderId, 'bot-id');
+  assert.equal(dispatched.dto.conversation_id, 'conv-dm-bot');
+  assert.ok(typeof dispatched.dto.content === 'string' && dispatched.dto.content.length > 0);
+});

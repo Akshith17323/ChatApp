@@ -1,5 +1,6 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MessageService } from '../message/message.service';
 import { FACTS } from './facts.data';
 
 // ─── Single Fixed Bot User ──────────────────────────────────────────────────
@@ -12,7 +13,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   private botUserId: string | null = null;
   private factIndex = 0;
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly messageService?: MessageService,
+  ) { }
 
   async onModuleInit() {
     this.logger.log('Bot simulation enabled (BOT_MODE=true)');
@@ -86,20 +90,28 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         const fact = FACTS[this.factIndex % FACTS.length];
         this.factIndex++;
 
-        // Build status payload
-        const status: Record<string, { delivered: boolean; read: boolean }> = {
-          [this.botUserId]: { delivered: true, read: true },
-          [realUser.id]: { delivered: false, read: false },
-        };
+        if (this.messageService) {
+          // Send via messageService to trigger real-time WebSocket broadcast and interactive logging
+          await this.messageService.createMessage(
+            { conversation_id: conversation.id, content: fact },
+            this.botUserId,
+          );
+        } else {
+          // Fallback if messageService is unavailable (e.g. isolated test environments)
+          const status: Record<string, { delivered: boolean; read: boolean }> = {
+            [this.botUserId]: { delivered: true, read: true },
+            [realUser.id]: { delivered: false, read: false },
+          };
 
-        await this.prisma.message.create({
-          data: {
-            content: fact,
-            senderId: this.botUserId,
-            conversationId: conversation.id,
-            status,
-          },
-        });
+          await this.prisma.message.create({
+            data: {
+              content: fact,
+              senderId: this.botUserId,
+              conversationId: conversation.id,
+              status,
+            },
+          });
+        }
       }
     } catch (err) {
       this.logger.error('Bot message tick failed:', err?.message ?? err);
