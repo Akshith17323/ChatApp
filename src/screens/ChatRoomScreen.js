@@ -23,8 +23,16 @@ import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useMessageOutbox } from '../context/MessageOutboxContext';
 import { useMessages, useUsers } from '../api/hooks';
 import { getAuthHeader, getApiConfig } from '../api';
+import { messageApi } from '../api/messageApi';
 import { mergeChatMessages } from '../utils/messageOutbox';
 import AppleAvatar from '../components/AppleAvatar';
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { conversationId, title, type, memberCount } = route.params;
@@ -53,6 +61,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { baseUrl } = getApiConfig();
 
   const getMessageImageUri = (item) => {
+    if (item.file?.kind === 'FILE' || item.type === 'FILE') return null;
+    if (item.file?.mimeType && !item.file.mimeType.startsWith('image/')) return null;
     if (item.localImageUri) return item.localImageUri;
     if (item.imageInfo) {
       return item.imageInfo;
@@ -73,15 +83,66 @@ export default function ChatRoomScreen({ route, navigation }) {
     error,
   } = useMessages(conversationId);
 
+  const [prevConversationId, setPrevConversationId] = useState(conversationId);
+  const [olderMessages, setOlderMessages] = useState([]);
+  const [olderCursor, setOlderCursor] = useState(null);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [hasNoMoreOlder, setHasNoMoreOlder] = useState(false);
+
+  // Adjust state during render if conversationId changes
+  if (prevConversationId !== conversationId) {
+    setPrevConversationId(conversationId);
+    setOlderMessages([]);
+    setOlderCursor(null);
+    setIsLoadingOlder(false);
+    setHasNoMoreOlder(false);
+  }
+
+  const loadEarlierMessages = useCallback(async () => {
+    const cursorToFetch = olderCursor || messagesResponse?.nextCursor;
+    if (!cursorToFetch || isLoadingOlder || hasNoMoreOlder) return;
+
+    setIsLoadingOlder(true);
+    try {
+      const resp = await messageApi.getMessages({
+        conversation_id: conversationId,
+        from_message_cursor: cursorToFetch,
+      });
+      if (resp?.data?.length) {
+        setOlderMessages((prev) => [...resp.data, ...prev]);
+      }
+      if (resp?.nextCursor) {
+        setOlderCursor(resp.nextCursor);
+      } else {
+        setHasNoMoreOlder(true);
+      }
+    } catch (err) {
+      showMessageAlert('Failed to load older messages', err?.message || 'Network error');
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [olderCursor, messagesResponse?.nextCursor, isLoadingOlder, hasNoMoreOlder, conversationId]);
+
   const { outgoingMessages, isSending, enqueue, retry, discard, acknowledge } =
     useMessageOutbox(conversationId);
   const isUploadingImage = outgoingMessages.some((message) => message.localStatus === 'uploading');
   const isSendBusy = isSending || isPickingImage;
   const { data: users } = useUsers();
 
+  const allServerMessages = useMemo(() => {
+    const rawList = [...olderMessages, ...(messagesResponse?.data || [])];
+    const map = new Map();
+    for (const m of rawList) {
+      map.set(m.id, m);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [olderMessages, messagesResponse?.data]);
+
   const messages = useMemo(
-    () => mergeChatMessages(messagesResponse?.data || [], outgoingMessages),
-    [messagesResponse?.data, outgoingMessages]
+    () => mergeChatMessages(allServerMessages, outgoingMessages),
+    [allServerMessages, outgoingMessages]
   );
 
   useEffect(() => {
@@ -326,6 +387,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
     const imageUri = getMessageImageUri(item);
     const hasImage = !!imageUri;
+    const isFile = !hasImage && !!(item.fileId || item.file);
     const hasText = !!(item.content && item.content.trim().length > 0);
     const timeStr = formatMessageTime(item.createdAt);
     const isPending = item.localStatus === 'sending' || item.localStatus === 'uploading';
@@ -382,6 +444,38 @@ export default function ChatRoomScreen({ route, navigation }) {
                   resizeMode="cover"
                 />
               </TouchableOpacity>
+            )}
+
+            {isFile && (
+              <View style={styles.fileAttachmentRow}>
+                <Ionicons
+                  name="document-text"
+                  size={24}
+                  color={isMine ? colors.onPrimary : colors.primary}
+                  style={styles.fileIcon}
+                />
+                <View style={styles.fileDetails}>
+                  <Text
+                    style={[
+                      styles.fileNameText,
+                      isMine ? styles.myBubbleText : styles.otherBubbleText,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.file?.name || 'Attached file'}
+                  </Text>
+                  {item.file?.size ? (
+                    <Text
+                      style={[
+                        styles.fileSizeText,
+                        isMine ? styles.fileSizeMine : styles.fileSizeOther,
+                      ]}
+                    >
+                      {formatFileSize(item.file.size)}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
             )}
 
             {hasText && (
@@ -479,7 +573,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         {isLoading && messages.length === 0 ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading iMessages...</Text>
+            <Text style={styles.loadingText}>Loading messages...</Text>
           </View>
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -501,8 +595,25 @@ export default function ChatRoomScreen({ route, navigation }) {
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
               <View>
+                {!hasNoMoreOlder && (olderCursor || messagesResponse?.nextCursor) ? (
+                  <View style={styles.loadOlderContainer}>
+                    {isLoadingOlder ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={loadEarlierMessages}
+                        style={styles.loadOlderButton}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Load earlier messages"
+                      >
+                        <Text style={styles.loadOlderText}>Load earlier messages</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ) : null}
                 <View style={styles.dateStampContainer}>
-                  <Text style={styles.dateStampText}>iMessage</Text>
+                  <Text style={styles.dateStampText}>Messages</Text>
                 </View>
                 {error && (
                   <View style={styles.refreshErrorBanner}>
@@ -1020,5 +1131,48 @@ const createStyles = (colors) => StyleSheet.create({
   fullscreenImage: {
     width: '94%',
     height: '80%',
+  },
+  fileAttachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    gap: 8,
+    maxWidth: 240,
+  },
+  fileIcon: {
+    marginRight: 2,
+  },
+  fileDetails: {
+    flex: 1,
+  },
+  fileNameText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  fileSizeText: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  fileSizeMine: {
+    color: colors.onPrimaryMuted,
+  },
+  fileSizeOther: {
+    color: colors.secondaryText,
+  },
+  loadOlderContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  loadOlderButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceMuted,
+  },
+  loadOlderText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.primary,
   },
 });

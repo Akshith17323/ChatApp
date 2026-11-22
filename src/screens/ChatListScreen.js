@@ -44,17 +44,17 @@ export default function ChatListScreen({ navigation }) {
   }, [users]);
 
   const getConversationTitle = useCallback((item) => {
-    if (item.name) return item.name;
-
     if (item.type === 'DM') {
       const otherId = item.participants_ids?.find((id) => id !== user?.id);
       if (otherId && userMap.has(otherId)) {
         return userMap.get(otherId);
       }
-      return otherId ? `User (${otherId.slice(-4)})` : 'Direct Message';
+      if (otherId) return `User (${otherId.slice(-4)})`;
     }
 
-    return 'Group Conversation';
+    if (item.name) return item.name;
+
+    return item.type === 'DM' ? 'Direct Message' : 'Group Conversation';
   }, [userMap, user?.id]);
 
   const formatAppleDate = (dateString) => {
