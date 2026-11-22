@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty, IsOptional, IsString, IsUrl, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUrl, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 // ─── Request DTOs ─────────────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ export class UploadFileDto {
 
 export class FileIdParamDto {
   @ApiProperty({ description: 'MongoDB ObjectId of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
-  @IsMongoId()
+  @IsString()
   id: string;
 }
 

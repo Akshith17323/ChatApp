@@ -3,7 +3,6 @@ import {
   IsString,
   IsOptional,
   IsIn,
-  IsMongoId,
   IsArray,
 } from 'class-validator';
 
@@ -32,7 +31,7 @@ export class CreateConversationDto {
   })
   @IsOptional()
   @IsArray()
-  @IsMongoId({ each: true })
+  @IsString({ each: true })
   participants_ids?: string[];
 }
 

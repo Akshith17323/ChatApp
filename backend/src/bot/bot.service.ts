@@ -44,7 +44,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     if (!user) {
       try {
         user = await this.prisma.user.create({
-          data: { name: BOT_USER.name, bio: 'I am a FactBot 🤖', conversationIds: [] },
+          data: { name: BOT_USER.name, bio: 'I am a FactBot 🤖' },
         });
       } catch (error) {
         if (error.code !== 'P2002') throw error;
@@ -140,16 +140,6 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         type: 'DM',
         createdBy: this.botUserId,
         participants_ids: [this.botUserId, realUserId],
-      },
-    });
-
-    // Link conversation to both users
-    await this.prisma.user.updateMany({
-      where: { id: { in: [this.botUserId, realUserId] } },
-      data: {
-        conversationIds: {
-          push: conversation.id,
-        },
       },
     });
 

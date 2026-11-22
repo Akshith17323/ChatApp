@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsMongoId, IsOptional } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class GetUserProfileDto {
   @ApiPropertyOptional({
@@ -7,7 +7,7 @@ export class GetUserProfileDto {
     example: '64b8f9e2c4a3b12d4e5f6789',
   })
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   user_id?: string;
 }
 
