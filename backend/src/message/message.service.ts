@@ -94,7 +94,7 @@ export class MessageService {
         : `data:image/jpeg;base64,${dto.imageInfo}`;
     }
 
-    // Fetch participant names explicitly — Prisma MongoDB relation joins are unreliable
+    // Fetch participant names explicitly for message rendering
     const participants = await this.prisma.user.findMany({
       where: { id: { in: conversation.participants_ids } },
       select: { id: true, name: true },

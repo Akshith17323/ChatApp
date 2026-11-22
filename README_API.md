@@ -1,6 +1,6 @@
 # Chat App Backend API Integration Guide
 
-This React Native Expo application integrates with the NestJS + MongoDB Chat Backend documented at:
+This React Native Expo application integrates with the NestJS + PostgreSQL Chat Backend documented at:
 **Swagger UI:** [http://10.7.1.51:3000/docs#/](http://10.7.1.51:3000/docs#/)
 
 ---
@@ -32,7 +32,7 @@ Authorization: Basic <username>:<password>
     ```
 
 - **`GET /user/profile`**
-  - **Query Params:** `?user_id=<mongo_id>` *(optional, defaults to authenticated caller)*
+  - **Query Params:** `?user_id=<user_id>` *(optional, defaults to authenticated caller)*
   - **Response:** `UserResponseDto`
     ```json
     { "id": "64b8f9e2c4a3b12d4e5f6789", "name": "Alice", "bio": "Building cool stuff" }
@@ -74,7 +74,7 @@ Authorization: Basic <username>:<password>
 ### ✉️ Message Endpoints (`/message`)
 - **`GET /message`**
   - **Query Params:**
-    - `conversation_id`: MongoDB ObjectId of conversation (*required*)
+    - `conversation_id`: Unique identifier of conversation (*required*)
     - `from_message_cursor`: ObjectId of cursor message (*optional, for pagination*)
   - **Response:** `PaginatedMessagesResponseDto`
     ```json

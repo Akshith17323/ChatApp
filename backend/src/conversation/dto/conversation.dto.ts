@@ -38,7 +38,7 @@ export class CreateConversationDto {
 
 export class ConversationResponseDto {
   @ApiProperty({
-    description: 'Unique MongoDB ObjectId of the conversation',
+    description: 'Unique identifier of the conversation',
     example: '64b8f9e2c4a3b12d4e5f0001',
   })
   id: string;
@@ -63,13 +63,13 @@ export class ConversationResponseDto {
   createdAt: Date;
 
   @ApiProperty({
-    description: 'MongoDB ObjectId of the user who created this conversation',
+    description: 'Unique identifier of the user who created this conversation',
     example: '64b8f9e2c4a3b12d4e5f6789',
   })
   createdBy: string;
 
   @ApiProperty({
-    description: 'List of participant user ObjectIds (including creator)',
+    description: 'List of participant user identifiers (including creator)',
     example: ['64b8f9e2c4a3b12d4e5f6789', '64b8f9e2c4a3b12d4e5f6790'],
     type: [String],
   })

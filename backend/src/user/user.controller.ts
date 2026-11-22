@@ -21,7 +21,7 @@ export class UserController {
   @ApiQuery({
     name: 'user_id',
     required: false,
-    description: 'MongoDB ObjectId of the target user (defaults to authenticated caller)',
+    description: 'Unique identifier of the target user (defaults to authenticated caller)',
     example: '64b8f9e2c4a3b12d4e5f6789',
   })
   @ApiResponse({

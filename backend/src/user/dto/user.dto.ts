@@ -3,7 +3,7 @@ import { IsOptional, IsString } from 'class-validator';
 
 export class GetUserProfileDto {
   @ApiPropertyOptional({
-    description: 'MongoDB ObjectId of the user to fetch. Defaults to authenticated user if omitted.',
+    description: 'Unique identifier of the user to fetch. Defaults to authenticated user if omitted.',
     example: '64b8f9e2c4a3b12d4e5f6789',
   })
   @IsOptional()
@@ -13,7 +13,7 @@ export class GetUserProfileDto {
 
 export class UserResponseDto {
   @ApiProperty({
-    description: 'Unique MongoDB ObjectId of the user',
+    description: 'Unique identifier of the user',
     example: '64b8f9e2c4a3b12d4e5f6789',
   })
   id: string;

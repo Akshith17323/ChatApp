@@ -61,7 +61,7 @@ export class UploadFileDto {
 }
 
 export class FileIdParamDto {
-  @ApiProperty({ description: 'MongoDB ObjectId of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
+  @ApiProperty({ description: 'Unique identifier of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
   @IsString()
   id: string;
 }
@@ -69,7 +69,7 @@ export class FileIdParamDto {
 // ─── Response DTOs ────────────────────────────────────────────────────────────
 
 export class FileResponseDto {
-  @ApiProperty({ description: 'Unique MongoDB ObjectId of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
+  @ApiProperty({ description: 'Unique identifier of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
   id: string;
 
   @ApiProperty({ description: 'Original file name', example: 'holiday.jpg' })
@@ -88,7 +88,7 @@ export class FileResponseDto {
   })
   kind: 'IMAGE' | 'FILE';
 
-  @ApiProperty({ description: 'MongoDB ObjectId of the user who uploaded the file', example: '64b8f9e2c4a3b12d4e5f6789' })
+  @ApiProperty({ description: 'Unique identifier of the user who uploaded the file', example: '64b8f9e2c4a3b12d4e5f6789' })
   uploadedBy: string;
 
   @ApiProperty({ description: 'ISO timestamp of the upload', example: '2024-01-15T10:34:00.000Z' })

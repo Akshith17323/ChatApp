@@ -32,13 +32,13 @@ export class MessageController {
   })
   @ApiQuery({
     name: 'conversation_id',
-    description: 'MongoDB ObjectId of the target conversation',
+    description: 'Unique identifier of the target conversation',
     example: '64b8f9e2c4a3b12d4e5f0001',
   })
   @ApiQuery({
     name: 'from_message_cursor',
     required: false,
-    description: 'ObjectId of the last fetched message. Omit for the first page.',
+    description: 'Identifier of the last fetched message. Omit for the first page.',
     example: '64b8f9e2c4a3b12d4e5f1234',
   })
   @ApiResponse({

@@ -1,7 +1,7 @@
 {
   "name": "chat-app-backend",
   "version": "1.0.0",
-  "description": "NestJS Chat Backend — Prisma + MongoDB + Swagger",
+  "description": "NestJS Chat Backend — Prisma + PostgreSQL + Swagger",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -16,7 +16,8 @@
     "build": "nest build",
     "test": "npm run build && node --test test/*.test.cjs",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
