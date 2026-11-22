@@ -94,11 +94,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         const conversation = await this.findOrCreateDm(realUser.id);
         if (!conversation) continue;
 
-        // 1. Emit live typing indicator before sending
+        // 1. Emit live typing indicator before sending (snappy 600ms preview)
         if (this.chatGateway) {
           this.chatGateway.broadcastTyping(conversation.id, this.botUserId, BOT_USER.name, true);
         }
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 600));
 
         // 2. Pick next fact (cycle)
         const fact = FACTS[this.factIndex % FACTS.length];

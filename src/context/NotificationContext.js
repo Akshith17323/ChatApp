@@ -135,9 +135,11 @@ export function NotificationProvider({ children }) {
     };
 
     socket.on('conversation:updated', handleIncomingNotification);
+    socket.on('message:new', handleIncomingNotification);
 
     return () => {
       socket.off('conversation:updated', handleIncomingNotification);
+      socket.off('message:new', handleIncomingNotification);
       if (autoDismissTimerRef.current) {
         clearTimeout(autoDismissTimerRef.current);
         autoDismissTimerRef.current = null;

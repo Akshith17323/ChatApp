@@ -20,41 +20,47 @@ export default function InAppNotificationBanner({
 }) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const translateY = useRef(new Animated.Value(-150)).current;
+  const [isRendered, setIsRendered] = React.useState(visible);
+  const translateY = useRef(new Animated.Value(-160)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible && notification) {
+      setIsRendered(true);
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
           useNativeDriver: true,
-          tension: 70,
-          friction: 9,
+          tension: 120,
+          friction: 8,
         }),
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 180,
+          duration: 120,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
       Animated.parallel([
         Animated.timing(translateY, {
-          toValue: -150,
-          duration: 200,
+          toValue: -160,
+          duration: 160,
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0,
-          duration: 180,
+          duration: 140,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsRendered(false);
+        }
+      });
     }
   }, [visible, notification, translateY, opacity]);
 
-  if (!visible && opacity._value === 0) {
+  if (!isRendered && !visible) {
     return null;
   }
 
