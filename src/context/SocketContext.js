@@ -33,6 +33,7 @@ export function SocketProvider({ children }) {
   }
 
   useEffect(() => {
+    const timers = typingTimersRef.current;
     if (!isAuthenticated || !username || !password) {
       disconnectSocket();
       return;
@@ -109,6 +110,10 @@ export function SocketProvider({ children }) {
     socket.on('typing:update', handleTypingUpdate);
 
     return () => {
+      for (const timer of timers.values()) {
+        clearTimeout(timer);
+      }
+      timers.clear();
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('connected', handleInitialConnected);

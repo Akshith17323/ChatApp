@@ -1282,24 +1282,24 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.primary,
   },
   deleteIconBtn: {
-    marginLeft: 6,
-    padding: 1,
+    marginLeft: 8,
+    padding: 2,
   },
   typingIndicatorRow: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
   },
   typingDotBubble: {
     backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   typingText: {
     fontSize: 12,
     color: colors.secondaryText,
-    fontStyle: 'italic',
+    letterSpacing: -0.2,
   },
 });

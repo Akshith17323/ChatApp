@@ -47,7 +47,7 @@ export default function AppleAvatar({
   const bgColor = getColorForString(name);
   const initials = getInitials(name);
   const fontSize = Math.floor(size * 0.4);
-  const badgeSize = Math.max(10, Math.floor(size * 0.28));
+  const badgeSize = Math.max(10, Math.round((size * 0.25) / 2) * 2);
 
   if (isGroup) {
     const subSize = Math.floor(size * 0.68);
@@ -108,7 +108,7 @@ export default function AppleAvatar({
       >
         <Text style={[styles.initialsText, { fontSize }]}>{initials}</Text>
       </View>
-      {isOnline && (
+      {isOnline && !isGroup && (
         <View
           style={[
             styles.onlineBadge,

@@ -15,7 +15,7 @@ import { readBasicCredentials, verifyPassword, matchesLegacyPassword } from '../
 @Injectable()
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: true,
     credentials: true,
   },
 })
@@ -172,6 +172,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data?.user;
     if (!user || !data?.conversationId) return;
 
+    // Reject broadcasting if client has not joined this conversation room
+    if (!client.rooms.has(`conv:${data.conversationId}`)) {
+      return;
+    }
+
     client.to(`conv:${data.conversationId}`).emit('typing:update', {
       conversationId: data.conversationId,
       userId: user.id,
@@ -188,6 +193,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data?.user;
     if (!user || !data?.conversationId) return;
 
+    if (!client.rooms.has(`conv:${data.conversationId}`)) {
+      return;
+    }
+
     client.to(`conv:${data.conversationId}`).emit('typing:update', {
       conversationId: data.conversationId,
       userId: user.id,
@@ -203,6 +212,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = client.data?.user;
     if (!user || !data?.conversationId || !data?.messageId) return;
+
+    if (!client.rooms.has(`conv:${data.conversationId}`)) {
+      return;
+    }
 
     client.to(`conv:${data.conversationId}`).emit('message:read', {
       conversationId: data.conversationId,
