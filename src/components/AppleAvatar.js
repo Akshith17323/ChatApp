@@ -41,11 +41,13 @@ export default function AppleAvatar({
   size = 48,
   isGroup = false,
   memberCount = 0,
+  isOnline = false,
 }) {
   const { colors } = useAppTheme();
   const bgColor = getColorForString(name);
   const initials = getInitials(name);
   const fontSize = Math.floor(size * 0.4);
+  const badgeSize = Math.max(10, Math.floor(size * 0.28));
 
   if (isGroup) {
     const subSize = Math.floor(size * 0.68);
@@ -92,18 +94,33 @@ export default function AppleAvatar({
   }
 
   return (
-    <View
-      style={[
-        styles.avatarCircle,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: bgColor,
-        },
-      ]}
-    >
-      <Text style={[styles.initialsText, { fontSize }]}>{initials}</Text>
+    <View style={{ width: size, height: size, position: 'relative' }}>
+      <View
+        style={[
+          styles.avatarCircle,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: bgColor,
+          },
+        ]}
+      >
+        <Text style={[styles.initialsText, { fontSize }]}>{initials}</Text>
+      </View>
+      {isOnline && (
+        <View
+          style={[
+            styles.onlineBadge,
+            {
+              width: badgeSize,
+              height: badgeSize,
+              borderRadius: badgeSize / 2,
+              borderColor: colors.surface,
+            },
+          ]}
+        />
+      )}
     </View>
   );
 }
@@ -117,6 +134,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     letterSpacing: -0.2,
+  },
+  onlineBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#34C759',
+    borderWidth: 2,
   },
   groupContainer: {
     position: 'relative',
