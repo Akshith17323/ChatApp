@@ -13,11 +13,10 @@ export function configureNotificationHandler(): void {
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
         shouldShowBanner: true,
         shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
       }),
     });
     isConfigured = true;
@@ -83,6 +82,11 @@ export async function presentLocalNotification(params: {
   if (Platform.OS === 'web') return null;
 
   try {
+    const trigger =
+      Platform.OS === 'android'
+        ? ({ channelId: 'default' } as const)
+        : null;
+
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: params.title,
@@ -90,7 +94,7 @@ export async function presentLocalNotification(params: {
         data: params.data ?? {},
         sound: true,
       },
-      trigger: null, // deliver immediately
+      trigger,
     });
     return id;
   } catch (_err) {

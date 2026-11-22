@@ -13,6 +13,7 @@ import { CreateMessageDto } from './dto/message.dto';
 import { colorizeName } from '../common/color.util';
 import { FILE_META_SELECT, toFileResponse } from '../file/file.service';
 import { ChatGateway } from './chat.gateway';
+import { FACTS } from '../bot/facts.data';
 
 const PAGE_SIZE = 20;
 
@@ -171,11 +172,12 @@ export class MessageService {
     (response as any).senderName = senderName;
     (response as any).conversationName = isDm ? null : (conversation.name ?? null);
 
-    // Auto-read receipt simulation for FactBot recipient
+    // Auto-read receipt and interactive response simulation for FactBot recipient
     const botUser = participants.find((p) => p.name === 'FactBot');
     if (botUser && senderId !== botUser.id) {
       setTimeout(async () => {
         try {
+          // 1. Mark message as delivered and read (blue double checkmarks)
           const currentMsg = await this.prisma.message.findUnique({
             where: { id: message.id },
             select: { status: true },
@@ -187,10 +189,29 @@ export class MessageService {
             data: { status },
           });
           this.chatGateway?.broadcastMessageRead(dto.conversation_id, message.id, botUser.id);
+
+          // 2. Start visible typing indicator
+          setTimeout(async () => {
+            this.chatGateway?.broadcastTyping(dto.conversation_id, botUser.id, 'FactBot', true);
+
+            // 3. Keep typing indicator active for 1.4s, then deliver interactive fact
+            setTimeout(async () => {
+              try {
+                this.chatGateway?.broadcastTyping(dto.conversation_id, botUser.id, 'FactBot', false);
+                const randomFact = FACTS[Math.floor(Math.random() * FACTS.length)];
+                await this.createMessage(
+                  { conversation_id: dto.conversation_id, content: randomFact },
+                  botUser.id,
+                );
+              } catch (botErr: any) {
+                this.logger.debug(`Bot auto-reply error: ${botErr?.message}`);
+              }
+            }, 1400);
+          }, 350);
         } catch (err: any) {
           this.logger.debug(`Bot auto-read error: ${err?.message}`);
         }
-      }, 700);
+      }, 500);
     }
 
     // Broadcast in real-time to active WebSocket rooms
