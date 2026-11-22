@@ -263,6 +263,44 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /**
+   * Broadcast typing indicator (used by clients and automated bot services)
+   */
+  broadcastTyping(conversationId: string, userId: string, userName: string, isTyping: boolean) {
+    if (!this.server) return;
+    this.server.to(`conv:${conversationId}`).emit('typing:update', {
+      conversationId,
+      userId,
+      userName,
+      isTyping,
+    });
+  }
+
+  /**
+   * Broadcast message read receipt to room
+   */
+  broadcastMessageRead(conversationId: string, messageId: string, userId: string) {
+    if (!this.server) return;
+    this.server.to(`conv:${conversationId}`).emit('message:read', {
+      conversationId,
+      messageId,
+      userId,
+    });
+  }
+
+  /**
+   * Register automated bot as active online participant
+   */
+  setBotOnline(botUserId: string) {
+    if (!this.activeUsers.has(botUserId)) {
+      this.activeUsers.set(botUserId, new Set(['bot-system-socket']));
+      this.server?.emit('presence:update', {
+        userId: botUserId,
+        isOnline: true,
+      });
+    }
+  }
+
   getOnlineUserIds(): string[] {
     return Array.from(this.activeUsers.keys());
   }

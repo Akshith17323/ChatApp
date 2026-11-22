@@ -29,6 +29,7 @@ import { messageApi } from '../api/messageApi';
 import { fileApi } from '../api/fileApi';
 import { mergeChatMessages } from '../utils/messageOutbox';
 import AppleAvatar from '../components/AppleAvatar';
+import AppleTypingIndicator from '../components/AppleTypingIndicator';
 
 function formatFileSize(bytes) {
   if (!bytes || bytes <= 0) return '';
@@ -812,13 +813,11 @@ export default function ChatRoomScreen({ route, navigation }) {
 
         {/* Real-time typing indicator */}
         {typingUsers[conversationId] && typingUsers[conversationId]?.userId !== user?.id && (
-          <View style={styles.typingIndicatorRow} accessibilityLiveRegion="polite">
-            <View style={styles.typingDotBubble}>
-              <Text style={styles.typingText}>
-                {typingUsers[conversationId]?.userName || 'Someone'} is typing…
-              </Text>
-            </View>
-          </View>
+          <AppleTypingIndicator
+            userName={typingUsers[conversationId]?.userName}
+            colors={colors}
+            isDark={isDark}
+          />
         )}
 
         {/* Apple Messages Bottom Input Bar */}

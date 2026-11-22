@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessageService } from '../message/message.service';
+import { ChatGateway } from '../message/chat.gateway';
 import { FACTS } from './facts.data';
 
 // ─── Single Fixed Bot User ──────────────────────────────────────────────────
@@ -16,6 +17,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly messageService?: MessageService,
+    @Optional() private readonly chatGateway?: ChatGateway,
   ) { }
 
   async onModuleInit() {
@@ -60,12 +62,18 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       await this.prisma.user.update({ where: { id: user.id }, data: { phone: null } });
     }
     this.botUserId = user.id;
+    if (this.botUserId) {
+      this.chatGateway?.setBotOnline(this.botUserId);
+    }
   }
 
   // ─── Core loop: every tick, EVERY real user gets a fact in the same DM ───
   private async sendBotMessages() {
     try {
       if (!this.botUserId) return;
+
+      // Ensure bot stays marked online
+      this.chatGateway?.setBotOnline(this.botUserId);
 
       // Get all real (non-bot) users
       const realUsers = await this.prisma.user.findMany({
@@ -86,7 +94,13 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         const conversation = await this.findOrCreateDm(realUser.id);
         if (!conversation) continue;
 
-        // Pick next fact (cycle)
+        // 1. Emit live typing indicator before sending
+        if (this.chatGateway) {
+          this.chatGateway.broadcastTyping(conversation.id, this.botUserId, BOT_USER.name, true);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // 2. Pick next fact (cycle)
         const fact = FACTS[this.factIndex % FACTS.length];
         this.factIndex++;
 
@@ -111,6 +125,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
               status,
             },
           });
+        }
+
+        // 3. Clear typing indicator
+        if (this.chatGateway) {
+          this.chatGateway.broadcastTyping(conversation.id, this.botUserId, BOT_USER.name, false);
         }
       }
     } catch (err) {

@@ -171,6 +171,28 @@ export class MessageService {
     (response as any).senderName = senderName;
     (response as any).conversationName = isDm ? null : (conversation.name ?? null);
 
+    // Auto-read receipt simulation for FactBot recipient
+    const botUser = participants.find((p) => p.name === 'FactBot');
+    if (botUser && senderId !== botUser.id) {
+      setTimeout(async () => {
+        try {
+          const currentMsg = await this.prisma.message.findUnique({
+            where: { id: message.id },
+            select: { status: true },
+          });
+          const status = (currentMsg?.status as Record<string, { delivered: boolean; read: boolean }>) || {};
+          status[botUser.id] = { delivered: true, read: true };
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: { status },
+          });
+          this.chatGateway?.broadcastMessageRead(dto.conversation_id, message.id, botUser.id);
+        } catch (err: any) {
+          this.logger.debug(`Bot auto-read error: ${err?.message}`);
+        }
+      }, 700);
+    }
+
     // Broadcast in real-time to active WebSocket rooms
     try {
       this.chatGateway?.broadcastNewMessage(
