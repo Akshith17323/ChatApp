@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
+import { useSocket } from '../context/SocketContext';
 import { useConversations, useUsers } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
 
@@ -21,6 +22,7 @@ export default function ChatListScreen({ navigation }) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { user } = useAuth();
+  const { onlineUserIds, socket } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
   const {
     data: conversations,
@@ -31,6 +33,18 @@ export default function ChatListScreen({ navigation }) {
   } = useConversations();
 
   const { data: users } = useUsers();
+
+  // Listen for real-time conversation updates over WebSocket
+  useEffect(() => {
+    if (!socket) return;
+    const handleConversationUpdated = () => {
+      refetch();
+    };
+    socket.on('conversation:updated', handleConversationUpdated);
+    return () => {
+      socket.off('conversation:updated', handleConversationUpdated);
+    };
+  }, [socket, refetch]);
 
   // Create an id -> name lookup map
   const userMap = useMemo(() => {
@@ -103,6 +117,8 @@ export default function ChatListScreen({ navigation }) {
     const isDm = item.type === 'DM';
     const dateStr = formatAppleDate(item.createdAt);
     const memberCount = item.participants_ids?.length || 0;
+    const otherId = isDm ? item.participants_ids?.find((id) => id !== user?.id) : null;
+    const isOnline = isDm && otherId ? onlineUserIds.has(otherId) : false;
 
     return (
       <TouchableOpacity
@@ -123,6 +139,7 @@ export default function ChatListScreen({ navigation }) {
           size={48}
           isGroup={!isDm}
           memberCount={memberCount}
+          isOnline={isOnline}
         />
 
         {/* Content & Apple styled right edge */}
@@ -143,7 +160,7 @@ export default function ChatListScreen({ navigation }) {
           </View>
 
           <Text style={styles.chatSubtitle} numberOfLines={2}>
-            {isDm ? 'iMessage' : `${memberCount} people`}
+            {isDm ? (isOnline ? 'Online' : 'Offline') : `${memberCount} members`}
           </Text>
 
           {/* Inset Hairline Separator */}

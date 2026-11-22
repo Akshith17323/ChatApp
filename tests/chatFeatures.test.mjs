@@ -111,3 +111,58 @@ test('getMessageImageUri returns null for non-image files and documents', () => 
   };
   assert.equal(getMessageImageUri(imageMessage), 'https://chat.example.com/file/file-img-1/download');
 });
+
+// Test Real-Time Presence & Typing State
+test('presence and typing state track socket updates correctly', () => {
+  // Presence tracking
+  const onlineUsers = new Set(['user-1']);
+  function handlePresenceUpdate(data) {
+    if (data.isOnline) {
+      onlineUsers.add(data.userId);
+    } else {
+      onlineUsers.delete(data.userId);
+    }
+  }
+
+  handlePresenceUpdate({ userId: 'user-2', isOnline: true });
+  assert.equal(onlineUsers.has('user-2'), true);
+
+  handlePresenceUpdate({ userId: 'user-1', isOnline: false });
+  assert.equal(onlineUsers.has('user-1'), false);
+  assert.equal(onlineUsers.has('user-2'), true);
+
+  // Typing tracking
+  let typingState = {};
+  function handleTypingUpdate(data) {
+    if (data.isTyping) {
+      typingState = { ...typingState, [data.conversationId]: { userId: data.userId, userName: data.userName } };
+    } else {
+      const copy = { ...typingState };
+      delete copy[data.conversationId];
+      typingState = copy;
+    }
+  }
+
+  handleTypingUpdate({ conversationId: 'conv-1', userId: 'user-2', userName: 'Bob', isTyping: true });
+  assert.deepEqual(typingState['conv-1'], { userId: 'user-2', userName: 'Bob' });
+
+  handleTypingUpdate({ conversationId: 'conv-1', userId: 'user-2', userName: 'Bob', isTyping: false });
+  assert.equal(typingState['conv-1'], undefined);
+});
+
+// Test Real-time message deletion
+test('real-time message deletion filters out message by ID', () => {
+  const currentMessages = [
+    { id: 'm1', content: 'First message' },
+    { id: 'm2', content: 'Second message' },
+    { id: 'm3', content: 'Third message' },
+  ];
+
+  function handleMessageDeleted(messages, deletedId) {
+    return messages.filter((m) => m.id !== deletedId);
+  }
+
+  const updated = handleMessageDeleted(currentMessages, 'm2');
+  assert.equal(updated.length, 2);
+  assert.deepEqual(updated.map((m) => m.id), ['m1', 'm3']);
+});

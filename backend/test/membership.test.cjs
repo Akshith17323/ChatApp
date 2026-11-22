@@ -267,3 +267,37 @@ test('file access control: conversation participant CAN download shared file (20
   const file = await service.getForDownload(FILE_ID, BOB);
   assert.equal(file.id, FILE_ID);
 });
+
+test('message delete: sender CAN delete their own message (200 OK)', async () => {
+  let deletedId = null;
+  const service = new MessageService({
+    message: {
+      findUnique: async ({ where }) => ({ id: where.id, senderId: ALICE, conversationId: CHAT }),
+      delete: async ({ where }) => { deletedId = where.id; return { id: where.id }; },
+    },
+  });
+
+  const res = await service.deleteMessage('msg-123', ALICE);
+  assert.equal(res.success, true);
+  assert.equal(deletedId, 'msg-123');
+});
+
+test('message delete: another user cannot delete message (403 Forbidden)', async () => {
+  const service = new MessageService({
+    message: {
+      findUnique: async () => ({ id: 'msg-123', senderId: ALICE, conversationId: CHAT }),
+    },
+  });
+
+  await assert.rejects(service.deleteMessage('msg-123', BOB), hasStatus(403));
+});
+
+test('message delete: non-existent message returns 404 Not Found', async () => {
+  const service = new MessageService({
+    message: {
+      findUnique: async () => null,
+    },
+  });
+
+  await assert.rejects(service.deleteMessage('msg-nonexistent', ALICE), hasStatus(404));
+});

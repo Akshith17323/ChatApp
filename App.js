@@ -6,6 +6,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
+import { SocketProvider } from './src/context/SocketContext';
 import { MessageOutboxProvider } from './src/context/MessageOutboxContext';
 import TabNavigator from './src/navigation/Tabnavigator';
 
@@ -57,7 +58,9 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <AppContent />
+            <SocketProvider>
+              <AppContent />
+            </SocketProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
