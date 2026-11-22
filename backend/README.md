@@ -177,6 +177,19 @@ After pulling these changes, run `npm run prisma:generate` (Docker does this on 
 
 ---
 
+## Real-Time WebSockets (`Socket.io`)
+
+The server runs a WebSocket Gateway at `ws://<host>:<port>` with CORS enabled.
+
+- **Authentication:** Send `auth: { username, password }` or `Authorization: Basic ...` on handshake.
+- **Presence:** `presence:update` broadcasts `{ userId, isOnline }`.
+- **Rooms:** `room:join` and `room:leave` with `{ conversationId }` (validates participant membership).
+- **Typing:** `typing:start` and `typing:stop` broadcast `{ conversationId, userId, userName, isTyping }`.
+- **Live Push:** `message:new` immediately delivers new messages; `message:deleted` delivers deleted message IDs.
+- **Read Receipts:** `message:read` broadcasts `{ conversationId, messageId, userId }`.
+
+---
+
 ## Scripts
 
 | Command | Description |
