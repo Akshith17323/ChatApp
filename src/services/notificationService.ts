@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { AndroidImportance } from 'expo-notifications';
 
 let isConfigured = false;
 let isChannelConfigured = false;
@@ -20,7 +21,7 @@ export function configureNotificationHandler(): void {
       }),
     });
     isConfigured = true;
-  } catch (err) {
+  } catch {
     // Non-fatal in web or headless preview environments
   }
 }
@@ -36,14 +37,14 @@ export async function setupNotificationChannels(): Promise<void> {
   try {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Messages',
-      importance: Notifications.AndroidImportance.MAX,
+      importance: AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#007AFF',
       enableVibrate: true,
       showBadge: true,
     });
     isChannelConfigured = true;
-  } catch (_err) {
+  } catch {
     // Expo Go on Android has limited support for custom notification channels (SDK 53+).
     // Standalone APK builds compile full native channels cleanly.
     isChannelConfigured = true;
@@ -66,7 +67,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
 
     return finalStatus === 'granted';
-  } catch (_err) {
+  } catch {
     return false;
   }
 }
@@ -97,7 +98,7 @@ export async function presentLocalNotification(params: {
       trigger,
     });
     return id;
-  } catch (_err) {
+  } catch {
     // Expo Go has Android SDK 53+ push/local limitations, in-app banner acts as primary fallback
     return null;
   }

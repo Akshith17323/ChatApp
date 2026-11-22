@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -20,13 +20,12 @@ export default function InAppNotificationBanner({
 }) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const [isRendered, setIsRendered] = React.useState(visible);
-  const translateY = useRef(new Animated.Value(-160)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [activeNotification, setActiveNotification] = useState(notification);
+  const [translateY] = useState(() => new Animated.Value(-160));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (visible && notification) {
-      setIsRendered(true);
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -54,18 +53,19 @@ export default function InAppNotificationBanner({
         }),
       ]).start(({ finished }) => {
         if (finished) {
-          setIsRendered(false);
+          setActiveNotification(null);
         }
       });
     }
   }, [visible, notification, translateY, opacity]);
 
-  if (!isRendered && !visible) {
+  if (!visible && !activeNotification) {
     return null;
   }
 
-  const title = notification?.title || 'New Message';
-  const body = notification?.body || '';
+  const currentNotif = notification || activeNotification;
+  const title = currentNotif?.title || 'New Message';
+  const body = currentNotif?.body || '';
 
   return (
     <Animated.View

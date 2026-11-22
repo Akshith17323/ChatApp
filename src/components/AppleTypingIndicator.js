@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Animated, Text } from 'react-native';
 import { useAppTheme } from '../context/ThemeContext';
 import AppleAvatar from './AppleAvatar';
@@ -8,9 +8,9 @@ export default function AppleTypingIndicator({ userName, colors: propColors, isD
   const colors = propColors || theme.colors;
   const isDark = propIsDark !== undefined ? propIsDark : theme.isDark;
 
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
+  const [dot1] = useState(() => new Animated.Value(0));
+  const [dot2] = useState(() => new Animated.Value(0));
+  const [dot3] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const createPulse = (dot, delay) => {
