@@ -39,6 +39,7 @@ RUN npm run build
 
 # ─── Stage 3: Production runtime ──────────────────────────────────────────────
 FROM node:20-alpine AS production
+ENV NODE_ENV=production
 
 WORKDIR /app
 

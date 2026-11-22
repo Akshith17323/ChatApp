@@ -26,7 +26,7 @@ export class CreateConversationDto {
   name?: string;
 
   @ApiPropertyOptional({
-    description: 'Array of participant user ObjectIds (caller is added automatically).',
+    description: 'Array of participant user ObjectIds (caller is added automatically). A DM requires exactly one other user.',
     example: ['64b8f9e2c4a3b12d4e5f6790'],
     type: [String],
   })

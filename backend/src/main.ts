@@ -7,6 +7,13 @@ import { JSON_BODY_LIMIT } from './common/base64.util';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY);
+  app.enableCors({
+    origin: (process.env.CORS_ORIGINS ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8081,http://127.0.0.1:8081'))
+      .split(',').map((origin) => origin.trim()).filter(Boolean),
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+  });
 
   // Files are uploaded as base64 inside JSON, so allow bodies larger than the 100 kb default
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
@@ -27,7 +34,7 @@ async function bootstrap() {
     .setDescription(
       'NestJS Chat Backend — Users, Conversations, and Messages with cursor-based pagination.\n\n' +
       '**Authentication**: All endpoints require an `Authorization` header in the format:\n\n' +
-      '`Authorization: Basic <username>:<password>`\n\n' +
+      '`Authorization: Basic <base64(UTF-8 username:password)>`\n\n' +
       'The `username` acts as the unique user identifier. ' +
       'The `password` is used for authentication. ' +
       'If no user exists with that username, one is created automatically.',
@@ -37,7 +44,7 @@ async function bootstrap() {
       {
         type: 'http',
         scheme: 'basic',
-        description: 'Format: Basic <username>:<password>',
+        description: 'Standard Basic authentication; passwords are case-sensitive and are not trimmed. HTTPS is required in production.',
       },
       'basic-auth',
     )
