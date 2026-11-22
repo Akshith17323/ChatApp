@@ -26,7 +26,7 @@ export class MessageController {
   @ApiOperation({
     summary: 'Get paginated messages',
     description:
-      'Fetches messages for a conversation using cursor-based pagination. ' +
+      'Fetches messages only for a conversation the caller participates in, using cursor-based pagination. ' +
       'First call: omit from_message_cursor. ' +
       'Subsequent calls: pass the returned nextCursor to load older messages.',
   })
@@ -47,10 +47,12 @@ export class MessageController {
     type: PaginatedMessagesResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Missing or invalid Authorization header' })
-  @ApiResponse({ status: 404, description: 'Cursor message not found' })
-  getMessages(@Query() query: GetMessagesDto) {
+  @ApiResponse({ status: 403, description: 'Caller is not a participant' })
+  @ApiResponse({ status: 404, description: 'Conversation or cursor in this conversation not found' })
+  getMessages(@Query() query: GetMessagesDto, @CurrentUser() user: any) {
     return this.messageService.getMessages(
       query.conversation_id,
+      user.id,
       query.from_message_cursor,
     );
   }
@@ -60,7 +62,7 @@ export class MessageController {
     summary: 'Send a message',
     description:
       'Creates a new message in the specified conversation. ' +
-      'The sender is identified from the `Authorization: Basic <username>:<password>` header — ' +
+      'Only participants can send. The sender is identified from the Basic Authorization header — ' +
       'no sender_id needed in the body. ' +
       'Send text via `content`, an image via `imageInfo` (Base64 data URI), or both. ' +
       'At least one of `content` or `imageInfo` must be provided. ' +
@@ -73,6 +75,7 @@ export class MessageController {
     type: MessageResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Missing or invalid Authorization header' })
+  @ApiResponse({ status: 403, description: 'Caller is not a participant or does not own the attachment' })
   @ApiResponse({ status: 404, description: 'Conversation not found' })
   @ApiResponse({ status: 400, description: 'Validation error or missing both content and imageInfo' })
   createMessage(@Body() body: CreateMessageDto, @CurrentUser() user: any) {

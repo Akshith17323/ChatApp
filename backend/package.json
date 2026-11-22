@@ -14,6 +14,7 @@
     "start:dev:bot": "BOT_MODE=true nest start --watch",
     "start:prod": "node dist/main",
     "build": "nest build",
+    "test": "npm run build && node --test test/*.test.cjs",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
   },

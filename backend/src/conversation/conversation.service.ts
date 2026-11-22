@@ -15,7 +15,7 @@ export class ConversationService {
    * sorted by createdAt descending (newest first).
    */
   async getUserConversations(userId: string) {
-    return this.prisma.conversation.findMany({
+    const conversations = await this.prisma.conversation.findMany({
       where: {
         participants_ids: {
           has: userId,
@@ -33,6 +33,11 @@ export class ConversationService {
         participants_ids: true,
       },
     });
+    // Preserve legacy chats and their members, but never label a multi-person chat as private.
+    return conversations.map((conversation) => ({
+      ...conversation,
+      type: conversation.type === 'DM' && conversation.participants_ids.length !== 2 ? 'GROUP' : conversation.type,
+    }));
   }
 
   /**
@@ -53,6 +58,10 @@ export class ConversationService {
     }
 
     const participantsArray = Array.from(participantIds);
+    const type = dto.type ?? (participantsArray.length > 1 ? 'GROUP' : 'DM');
+    if (type === 'DM' && participantsArray.length !== 1) {
+      throw new BadRequestException('A DM requires exactly one other participant');
+    }
 
     // Verify all participants exist
     const foundUsers = await this.prisma.user.findMany({
@@ -64,17 +73,16 @@ export class ConversationService {
       throw new NotFoundException('One or more participant users not found');
     }
 
-    const type = dto.type ?? (participantsArray.length > 1 ? 'GROUP' : 'DM');
-
     // For DMs: return existing conversation if one already exists between caller and recipient
     if (type === 'DM' && participantsArray.length === 1) {
       const otherId = participantsArray[0];
       const existing = await this.prisma.conversation.findFirst({
         where: {
           type: 'DM',
-          participants_ids: {
-            hasEvery: [callerId, otherId],
-          },
+          OR: [
+            { participants_ids: { equals: [callerId, otherId] } },
+            { participants_ids: { equals: [otherId, callerId] } },
+          ],
         },
       });
 

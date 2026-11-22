@@ -5,10 +5,10 @@ services:
     container_name: chatapp_mongo
     restart: unless-stopped
     ports:
-      - '27017:27017'
+      - '127.0.0.1:27017:27017'
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Set a random MONGO_PASSWORD in backend/.env}
       MONGO_INITDB_DATABASE: chatapp
       MONGO_SILENT_LOGS: ${MONGO_SILENT_LOGS:-true}
     entrypoint:

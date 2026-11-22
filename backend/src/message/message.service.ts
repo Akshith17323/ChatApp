@@ -18,7 +18,8 @@ export class MessageService {
    * - With cursor → 20 messages older than the cursor message.
    * Returned oldest-first within the page (natural chat order).
    */
-  async getMessages(conversationId: string, fromMessageCursor?: string) {
+  async getMessages(conversationId: string, userId: string, fromMessageCursor?: string) {
+    await this.requireParticipant(conversationId, userId);
     const query: any = {
       where: { conversationId },
       orderBy: { createdAt: 'desc' },
@@ -38,9 +39,10 @@ export class MessageService {
     if (fromMessageCursor) {
       const cursorMessage = await this.prisma.message.findUnique({
         where: { id: fromMessageCursor },
+        select: { conversationId: true },
       });
-      if (!cursorMessage) {
-        throw new NotFoundException(`Cursor message '${fromMessageCursor}' not found`);
+      if (!cursorMessage || cursorMessage.conversationId !== conversationId) {
+        throw new NotFoundException('Cursor message not found in this conversation');
       }
       query.cursor = { id: fromMessageCursor };
       query.skip = 1;
@@ -68,6 +70,8 @@ export class MessageService {
       throw new BadRequestException('Message must contain content, imageInfo, or file_id');
     }
 
+    const conversation = await this.requireParticipant(dto.conversation_id, senderId);
+
     // An attachment must exist and belong to the sender
     if (dto.file_id) {
       const file = await this.prisma.file.findUnique({
@@ -80,14 +84,6 @@ export class MessageService {
       if (file.uploadedBy !== senderId) {
         throw new ForbiddenException('You can only send files you uploaded');
       }
-    }
-
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: dto.conversation_id },
-    });
-
-    if (!conversation) {
-      throw new NotFoundException(`Conversation '${dto.conversation_id}' not found`);
     }
 
     // Auto-prefix raw Base64 strings missing the data URI scheme
@@ -158,6 +154,15 @@ export class MessageService {
     );
 
     return response;
+  }
+
+  private async requireParticipant(conversationId: string, userId: string) {
+    const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
+    if (!conversation) throw new NotFoundException(`Conversation '${conversationId}' not found`);
+    if (!conversation.participants_ids.includes(userId)) {
+      throw new ForbiddenException('You are not a participant of this conversation');
+    }
+    return conversation;
   }
 
   /**

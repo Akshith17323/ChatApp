@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FACTS } from './facts.data';
 
 // ─── Single Fixed Bot User ──────────────────────────────────────────────────
-const BOT_USER = { name: 'FactBot', phone: 'BOT_001' };
+const BOT_USER = { name: 'FactBot' };
 
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
@@ -42,14 +42,18 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       where: { name: BOT_USER.name },
     });
     if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          name: BOT_USER.name,
-          phone: BOT_USER.phone,
-          bio: 'I am a FactBot 🤖',
-          conversationIds: [],
-        },
-      });
+      try {
+        user = await this.prisma.user.create({
+          data: { name: BOT_USER.name, bio: 'I am a FactBot 🤖', conversationIds: [] },
+        });
+      } catch (error) {
+        if (error.code !== 'P2002') throw error;
+        user = await this.prisma.user.findUnique({ where: { name: BOT_USER.name } });
+        if (!user) throw error;
+      }
+    }
+    if (user.phone === 'BOT_001') {
+      await this.prisma.user.update({ where: { id: user.id }, data: { phone: null } });
     }
     this.botUserId = user.id;
   }
@@ -110,9 +114,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     const existing = await this.prisma.conversation.findFirst({
       where: {
         type: 'DM',
-        participants_ids: {
-          hasEvery: [this.botUserId, realUserId],
-        },
+        OR: [
+          { participants_ids: { equals: [this.botUserId, realUserId] } },
+          { participants_ids: { equals: [realUserId, this.botUserId] } },
+        ],
       },
     });
 

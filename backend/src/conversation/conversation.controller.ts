@@ -25,7 +25,7 @@ export class ConversationController {
     description:
       'Returns all conversations the authenticated user participates in, ' +
       'sorted by createdAt descending (newest first). ' +
-      'User is identified from the `Authorization: Basic <username>:<password>` header.',
+      'User is identified from the Basic Authorization header. Legacy multi-person DMs are returned as groups.',
   })
   @ApiResponse({
     status: 200,
@@ -42,7 +42,7 @@ export class ConversationController {
     summary: 'Create or find a conversation',
     description:
       'Creates a new DM or Group conversation. The caller is automatically added to participants. ' +
-      'For DMs, if a conversation between the two users already exists, it is returned instead of creating a duplicate.',
+      'DMs require exactly one other participant and reuse only an exact two-person conversation.',
   })
   @ApiBody({ type: CreateConversationDto })
   @ApiResponse({
