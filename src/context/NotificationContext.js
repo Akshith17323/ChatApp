@@ -31,6 +31,7 @@ export function NotificationProvider({ children }) {
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [inAppNotification, setInAppNotification] = useState(null);
   const autoDismissTimerRef = useRef(null);
+  const lastProcessedMessageIdRef = useRef(null);
 
   // 1. Initial setup of notification handlers and permissions
   useEffect(() => {
@@ -78,6 +79,14 @@ export function NotificationProvider({ children }) {
       const conversationId = data.conversationId;
       const lastMessage = data.lastMessage || data.message;
       if (!lastMessage || !conversationId) return;
+
+      // Deduplicate if already handled this message
+      if (lastMessage.id && lastProcessedMessageIdRef.current === lastMessage.id) {
+        return;
+      }
+      if (lastMessage.id) {
+        lastProcessedMessageIdRef.current = lastMessage.id;
+      }
 
       // Do not notify for messages sent by the logged-in user
       if (lastMessage.senderId === user?.id) return;
