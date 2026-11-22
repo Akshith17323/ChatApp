@@ -54,16 +54,16 @@ export default function AuthScreen() {
             <View style={styles.appIconCircle}>
               <Ionicons name="chatbubble-ellipses" size={48} color={colors.onPrimary} />
             </View>
-            <Text style={styles.title}>iMessage</Text>
+            <Text style={styles.title}>Messages</Text>
             <Text style={styles.subtitle}>
-              Sign in to your account or create a new one automatically.
+              Sign in with your username and password.
             </Text>
           </View>
 
           {/* Inset Grouped Card */}
           <View style={styles.groupedCard}>
             <View style={styles.inputRow}>
-              <Text style={styles.rowLabel}>Handle</Text>
+              <Text style={styles.rowLabel}>Username</Text>
               <TextInput
                 style={styles.rowInput}
                 value={username}

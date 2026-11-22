@@ -85,7 +85,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionHeader}>APPEARANCE</Text>
+        <Text style={styles.sectionHeader}>Appearance</Text>
         <View style={styles.groupedCard} accessibilityRole="radiogroup">
           {APPEARANCE_OPTIONS.map((option, index) => (
             <React.Fragment key={option.value}>
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
         </Text>
 
         {/* Server Configuration Section */}
-        <Text style={styles.sectionHeader}>SERVER CONFIGURATION</Text>
+        <Text style={styles.sectionHeader}>Server configuration</Text>
         <View style={styles.groupedCard}>
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>URL</Text>
@@ -231,7 +231,7 @@ export default function SettingsScreen() {
         )}
 
         {/* Account Section */}
-        <Text style={styles.sectionHeader}>ACCOUNT</Text>
+        <Text style={styles.sectionHeader}>Account</Text>
         <View style={styles.groupedCard}>
           <TouchableOpacity
             style={styles.dangerRow}
@@ -243,7 +243,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* About Section */}
-        <Text style={styles.sectionHeader}>ABOUT</Text>
+        <Text style={styles.sectionHeader}>About</Text>
         <View style={styles.groupedCard}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Client Engine</Text>

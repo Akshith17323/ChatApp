@@ -534,7 +534,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 <Text style={styles.emptyChatSubtitle}>
                   {type === 'GROUP'
                     ? `Group conversation with ${memberCount || 'several'} members.`
-                    : 'Direct conversation. Say hello! 👋'}
+                    : 'Direct conversation. Say hello.'}
                 </Text>
               </View>
             )}
@@ -981,7 +981,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
     minHeight: 44,
     paddingHorizontal: 8,
   },
