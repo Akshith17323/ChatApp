@@ -168,9 +168,20 @@ export class MessageService {
       `\x1b[36m[MSG]\x1b[0m \x1b[1m${convLabel}\x1b[0m │ ${coloredSender} \x1b[33m➔\x1b[0m ${coloredReceivers} │ ${attachmentLabel}${imgLabel}"${contentLabel}"`,
     );
 
+    (response as any).senderName = senderName;
+    (response as any).conversationName = isDm ? null : (conversation.name ?? null);
+
     // Broadcast in real-time to active WebSocket rooms
     try {
-      this.chatGateway?.broadcastNewMessage(dto.conversation_id, response, conversation.participants_ids);
+      this.chatGateway?.broadcastNewMessage(
+        dto.conversation_id,
+        response,
+        conversation.participants_ids,
+        {
+          senderName,
+          conversationName: isDm ? senderName : (conversation.name || 'Group Chat'),
+        },
+      );
     } catch (err: any) {
       this.logger.warn(`WS broadcast error: ${err?.message}`);
     }

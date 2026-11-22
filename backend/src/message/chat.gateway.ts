@@ -227,7 +227,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Broadcast newly created message to room members and participants
    */
-  broadcastNewMessage(conversationId: string, message: any, participantIds: string[]) {
+  broadcastNewMessage(
+    conversationId: string,
+    message: any,
+    participantIds: string[],
+    meta?: { senderName?: string; conversationName?: string },
+  ) {
     if (!this.server) return;
 
     // Emit to active conversation room
@@ -236,10 +241,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       message,
     });
 
-    // Also emit to each participant's personal room for conversation list updates
+    // Also emit to each participant's personal room for conversation list updates and notifications
     for (const participantId of participantIds) {
       this.server.to(`user:${participantId}`).emit('conversation:updated', {
         conversationId,
+        conversationName: meta?.conversationName ?? message?.conversationName ?? null,
+        senderName: meta?.senderName ?? message?.senderName ?? null,
         lastMessage: message,
       });
     }

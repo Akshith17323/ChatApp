@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useSocket } from '../context/SocketContext';
+import { useNotification } from '../context/NotificationContext';
 import { useMessageOutbox } from '../context/MessageOutboxContext';
 import { useMessages, useUsers } from '../api/hooks';
 import { getAuthHeader, getApiConfig } from '../api';
@@ -62,6 +63,14 @@ export default function ChatRoomScreen({ route, navigation }) {
     sendMarkRead,
     typingUsers,
   } = useSocket();
+  const { setActiveConversationId } = useNotification();
+
+  useEffect(() => {
+    setActiveConversationId(conversationId);
+    return () => {
+      setActiveConversationId(null);
+    };
+  }, [conversationId, setActiveConversationId]);
 
   const setComposerText = useCallback((text) => {
     inputRef.current = text;
