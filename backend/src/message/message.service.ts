@@ -1,8 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  Optional,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMessageDto } from './dto/message.dto';
 import { colorizeName } from '../common/color.util';
 import { FILE_META_SELECT, toFileResponse } from '../file/file.service';
+import { ChatGateway } from './chat.gateway';
 
 const PAGE_SIZE = 20;
 
@@ -10,7 +20,12 @@ const PAGE_SIZE = 20;
 export class MessageService {
   private readonly logger = new Logger('Chat');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway?: ChatGateway,
+  ) {}
 
   /**
    * Fetch messages for a conversation using cursor-based pagination.
@@ -153,7 +168,40 @@ export class MessageService {
       `\x1b[36m[MSG]\x1b[0m \x1b[1m${convLabel}\x1b[0m │ ${coloredSender} \x1b[33m➔\x1b[0m ${coloredReceivers} │ ${attachmentLabel}${imgLabel}"${contentLabel}"`,
     );
 
+    // Broadcast in real-time to active WebSocket rooms
+    try {
+      this.chatGateway?.broadcastNewMessage(dto.conversation_id, response, conversation.participants_ids);
+    } catch (err: any) {
+      this.logger.warn(`WS broadcast error: ${err?.message}`);
+    }
+
     return response;
+  }
+
+  /**
+   * Delete a message. Only the sender can delete their own message.
+   */
+  async deleteMessage(messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, conversationId: true },
+    });
+    if (!message) {
+      throw new NotFoundException(`Message '${messageId}' not found`);
+    }
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only delete your own messages');
+    }
+
+    await this.prisma.message.delete({ where: { id: messageId } });
+
+    try {
+      this.chatGateway?.broadcastDeletedMessage(message.conversationId, messageId);
+    } catch (err: any) {
+      this.logger.warn(`WS delete broadcast error: ${err?.message}`);
+    }
+
+    return { success: true, id: messageId };
   }
 
   private async requireParticipant(conversationId: string, userId: string) {

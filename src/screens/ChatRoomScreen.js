@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
+import { useSocket } from '../context/SocketContext';
 import { useMessageOutbox } from '../context/MessageOutboxContext';
 import { useMessages, useUsers } from '../api/hooks';
 import { getAuthHeader, getApiConfig } from '../api';
@@ -48,11 +49,44 @@ export default function ChatRoomScreen({ route, navigation }) {
   const pickerActive = useRef(false);
   const isNearBottom = useRef(true);
   const shouldScrollToEnd = useRef(true);
+  const typingTimeoutRef = useRef(null);
+
+  const {
+    socket,
+    joinConversation,
+    leaveConversation,
+    sendTypingStart,
+    sendTypingStop,
+    sendMarkRead,
+    typingUsers,
+  } = useSocket();
 
   const setComposerText = useCallback((text) => {
     inputRef.current = text;
     setInputText(text);
   }, []);
+
+  const handleInputChange = useCallback((text) => {
+    setComposerText(text);
+    if (text.trim().length > 0) {
+      sendTypingStart(conversationId);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        sendTypingStop(conversationId);
+      }, 1500);
+    } else {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      sendTypingStop(conversationId);
+    }
+  }, [setComposerText, sendTypingStart, sendTypingStop, conversationId]);
+
+  // Join/leave WebSocket room
+  useEffect(() => {
+    joinConversation(conversationId);
+    return () => {
+      leaveConversation(conversationId);
+    };
+  }, [conversationId, joinConversation, leaveConversation]);
 
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -82,6 +116,34 @@ export default function ChatRoomScreen({ route, navigation }) {
     refetch,
     error,
   } = useMessages(conversationId);
+
+  // Real-time message push & deletion listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (payload) => {
+      if (payload?.conversationId === conversationId && payload?.message) {
+        refetch();
+        if (payload.message.id) {
+          sendMarkRead(conversationId, payload.message.id);
+        }
+      }
+    };
+
+    const handleDeletedMessage = (payload) => {
+      if (payload?.conversationId === conversationId) {
+        refetch();
+      }
+    };
+
+    socket.on('message:new', handleNewMessage);
+    socket.on('message:deleted', handleDeletedMessage);
+
+    return () => {
+      socket.off('message:new', handleNewMessage);
+      socket.off('message:deleted', handleDeletedMessage);
+    };
+  }, [socket, conversationId, refetch, sendMarkRead]);
 
   const [prevConversationId, setPrevConversationId] = useState(conversationId);
   const [olderMessages, setOlderMessages] = useState([]);
@@ -228,11 +290,29 @@ export default function ChatRoomScreen({ route, navigation }) {
   const handleSend = () => {
     const content = inputRef.current.trim();
     if (!content || isSendBusy || pickerActive.current) return;
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTypingStop(conversationId);
     shouldScrollToEnd.current = true;
     // Clear only after the outbox has retained a retryable copy of the message.
     if (enqueue({ conversation_id: conversationId, content })) {
       setComposerText('');
     }
+  };
+
+  const handleDeleteMessage = (item) => {
+    confirmMessageAction(
+      'Delete Message',
+      'Are you sure you want to delete this message? This action cannot be undone.',
+      'Delete',
+      async () => {
+        try {
+          await messageApi.deleteMessage(item.id);
+          refetch();
+        } catch (err) {
+          showMessageAlert('Could Not Delete Message', err?.message || 'Failed to delete message.');
+        }
+      }
+    );
   };
 
   const handleRetry = (message) => {
@@ -509,6 +589,21 @@ export default function ChatRoomScreen({ route, navigation }) {
                   style={styles.checkIcon}
                 />
               )}
+              {isMine && !isPending && !isFailed && !!item.id && (
+                <TouchableOpacity
+                  onPress={() => handleDeleteMessage(item)}
+                  style={styles.deleteIconBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete message"
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={11}
+                    color={colors.onPrimaryMuted}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -663,6 +758,17 @@ export default function ChatRoomScreen({ route, navigation }) {
           />
         )}
 
+        {/* Real-time typing indicator */}
+        {typingUsers[conversationId] && typingUsers[conversationId]?.userId !== user?.id && (
+          <View style={styles.typingIndicatorRow} accessibilityLiveRegion="polite">
+            <View style={styles.typingDotBubble}>
+              <Text style={styles.typingText}>
+                {typingUsers[conversationId]?.userName || 'Someone'} is typing…
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Apple Messages Bottom Input Bar */}
         <View
           style={[
@@ -696,8 +802,8 @@ export default function ChatRoomScreen({ route, navigation }) {
             <TextInput
               style={styles.textInput}
               value={inputText}
-              onChangeText={setComposerText}
-              placeholder="iMessage"
+              onChangeText={handleInputChange}
+              placeholder="Message"
               placeholderTextColor={colors.placeholder}
               accessibilityLabel="Message"
               multiline
@@ -1174,5 +1280,26 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.primary,
+  },
+  deleteIconBtn: {
+    marginLeft: 8,
+    padding: 2,
+  },
+  typingIndicatorRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typingDotBubble: {
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  typingText: {
+    fontSize: 12,
+    color: colors.secondaryText,
+    letterSpacing: -0.2,
   },
 });
