@@ -1,8 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Text } from 'react-native';
+import { useAppTheme } from '../context/ThemeContext';
 import AppleAvatar from './AppleAvatar';
 
-export default function AppleTypingIndicator({ userName, colors, isDark }) {
+export default function AppleTypingIndicator({ userName, colors: propColors, isDark: propIsDark }) {
+  const theme = useAppTheme();
+  const colors = propColors || theme.colors;
+  const isDark = propIsDark !== undefined ? propIsDark : theme.isDark;
+
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;

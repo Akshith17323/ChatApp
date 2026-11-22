@@ -41,7 +41,7 @@ function formatFileSize(bytes) {
 export default function ChatRoomScreen({ route, navigation }) {
   const { conversationId, title, type, memberCount } = route.params;
   const { user } = useAuth();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -741,6 +741,10 @@ export default function ChatRoomScreen({ route, navigation }) {
             contentContainerStyle={styles.messagesList}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={20}
+            maxToRenderPerBatch={15}
+            windowSize={11}
+            removeClippedSubviews={Platform.OS === 'android'}
             ListHeaderComponent={
               <View>
                 {!hasNoMoreOlder && (olderCursor || messagesResponse?.nextCursor) ? (
