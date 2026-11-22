@@ -25,6 +25,7 @@ import { useMessageOutbox } from '../context/MessageOutboxContext';
 import { useMessages, useUsers } from '../api/hooks';
 import { getAuthHeader, getApiConfig } from '../api';
 import { messageApi } from '../api/messageApi';
+import { fileApi } from '../api/fileApi';
 import { mergeChatMessages } from '../utils/messageOutbox';
 import AppleAvatar from '../components/AppleAvatar';
 
@@ -44,6 +45,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isPickingImage, setIsPickingImage] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [webImageUris, setWebImageUris] = useState({});
   const flatListRef = useRef(null);
   const inputRef = useRef('');
   const pickerActive = useRef(false);
@@ -100,6 +102,9 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (item.localImageUri) return item.localImageUri;
     if (item.imageInfo) {
       return item.imageInfo;
+    }
+    if (Platform.OS === 'web' && item.fileId && webImageUris[item.fileId]) {
+      return webImageUris[item.fileId];
     }
     if (item.fileId) {
       return `${baseUrl}/file/${item.fileId}/download`;
@@ -206,6 +211,44 @@ export default function ChatRoomScreen({ route, navigation }) {
     () => mergeChatMessages(allServerMessages, outgoingMessages),
     [allServerMessages, outgoingMessages]
   );
+
+  // On web, resolve protected attachments through authenticated API base64
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const fileIdsToFetch = messages
+      .filter(
+        (m) =>
+          m.fileId &&
+          !m.imageInfo &&
+          !m.localImageUri &&
+          (m.file?.kind === 'IMAGE' ||
+            (!m.file?.kind && (!m.file?.mimeType || m.file?.mimeType.startsWith('image/')))) &&
+          !webImageUris[m.fileId]
+      )
+      .map((m) => m.fileId);
+
+    if (fileIdsToFetch.length === 0) return;
+
+    let cancelled = false;
+    for (const fileId of fileIdsToFetch) {
+      fileApi
+        .getFile(fileId)
+        .then((file) => {
+          if (!cancelled && file?.data) {
+            const mime = file.mimeType || 'image/jpeg';
+            const uri = file.data.startsWith('data:')
+              ? file.data
+              : `data:${mime};base64,${file.data}`;
+            setWebImageUris((prev) => ({ ...prev, [fileId]: uri }));
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, webImageUris]);
 
   useEffect(() => {
     if (messagesResponse?.data) acknowledge(messagesResponse.data);

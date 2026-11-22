@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,14 @@ import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useUsers, useCreateConversation } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
+
+function showScreenAlert(title, message) {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
 
 export default function NewChatScreen({ navigation }) {
   const { colors } = useAppTheme();
@@ -59,7 +68,7 @@ export default function NewChatScreen({ navigation }) {
           });
         },
         onError: (err) => {
-          Alert.alert('Unable to Message', err.message || 'Could not start conversation.');
+          showScreenAlert('Unable to Message', err.message || 'Could not start conversation.');
         },
       }
     );
@@ -79,11 +88,11 @@ export default function NewChatScreen({ navigation }) {
 
   const handleCreateGroup = () => {
     if (selectedUserIds.length === 0) {
-      Alert.alert('Add Recipients', 'Please select at least one person for the group.');
+      showScreenAlert('Add Recipients', 'Please select at least one person for the group.');
       return;
     }
     if (!groupName.trim()) {
-      Alert.alert('Group Name', 'Please enter a name for this group chat.');
+      showScreenAlert('Group Name', 'Please enter a name for this group chat.');
       return;
     }
 
@@ -103,7 +112,7 @@ export default function NewChatScreen({ navigation }) {
           });
         },
         onError: (err) => {
-          Alert.alert('Unable to Create Group', err.message || 'Could not create group.');
+          showScreenAlert('Unable to Create Group', err.message || 'Could not create group.');
         },
       }
     );

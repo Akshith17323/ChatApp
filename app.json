@@ -47,7 +47,9 @@
             }
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-status-bar"
     ]
   }
 }
