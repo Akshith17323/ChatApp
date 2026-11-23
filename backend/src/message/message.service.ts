@@ -13,6 +13,7 @@ import { CreateMessageDto } from './dto/message.dto';
 import { colorizeName } from '../common/color.util';
 import { FILE_META_SELECT, toFileResponse } from '../file/file.service';
 import { ChatGateway } from './chat.gateway';
+import { FcmService } from './fcm.service';
 import { FACTS } from '../bot/facts.data';
 
 const PAGE_SIZE = 20;
@@ -26,6 +27,8 @@ export class MessageService {
     @Optional()
     @Inject(forwardRef(() => ChatGateway))
     private readonly chatGateway?: ChatGateway,
+    @Optional()
+    private readonly fcmService?: FcmService,
   ) {}
 
   /**
@@ -113,7 +116,7 @@ export class MessageService {
     // Fetch participant names explicitly for message rendering
     const participants = await this.prisma.user.findMany({
       where: { id: { in: conversation.participants_ids } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, pushToken: true },
     });
 
     const defaultStatus: Record<string, { delivered: boolean; read: boolean }> = {};
@@ -227,6 +230,27 @@ export class MessageService {
       );
     } catch (err: any) {
       this.logger.warn(`WS broadcast error: ${err?.message}`);
+    }
+
+    // Dispatch FCM push notifications to offline / background participants
+    if (this.fcmService) {
+      const convTitle = isDm ? senderName : (conversation.name || 'Group Chat');
+      const bodyPreview = (response as any).content || (file ? `Sent file: ${file.name}` : 'Sent a photo');
+
+      for (const recipient of participants) {
+        if (recipient.id !== senderId && (recipient as any).pushToken) {
+          void this.fcmService.sendPushNotification({
+            token: (recipient as any).pushToken,
+            title: senderName,
+            body: bodyPreview,
+            data: {
+              conversationId: dto.conversation_id,
+              conversationTitle: convTitle,
+              messageId: message.id,
+            },
+          });
+        }
+      }
     }
 
     return response;

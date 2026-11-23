@@ -15,7 +15,9 @@ import {
   setupNotificationChannels,
   requestNotificationPermissions,
   presentLocalNotification,
+  getDevicePushToken,
 } from '../services/notificationService';
+import { userApi } from '../api/userApi';
 import { navigateToChatRoom } from '../navigation/navigationRef';
 
 const NotificationContext = createContext({
@@ -33,13 +35,25 @@ export function NotificationProvider({ children }) {
   const autoDismissTimerRef = useRef(null);
   const lastProcessedMessageIdRef = useRef(null);
 
-  // 1. Initial setup of notification handlers and permissions
+  // 1. Initial setup of notification handlers, permissions, and FCM push token registration
   useEffect(() => {
     configureNotificationHandler();
     void setupNotificationChannels();
 
     if (isAuthenticated) {
-      void requestNotificationPermissions();
+      void (async () => {
+        try {
+          const granted = await requestNotificationPermissions();
+          if (granted) {
+            const token = await getDevicePushToken();
+            if (token) {
+              void userApi.updatePushToken(token).catch(() => {});
+            }
+          }
+        } catch {
+          // Non-fatal
+        }
+      })();
     }
   }, [isAuthenticated]);
 

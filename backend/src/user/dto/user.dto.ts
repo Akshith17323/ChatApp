@@ -30,3 +30,12 @@ export class UserResponseDto {
   })
   bio?: string;
 }
+
+export class UpdatePushTokenDto {
+  @ApiProperty({
+    description: 'FCM push notification token for this device',
+    example: 'f_ABC123...',
+  })
+  @IsString()
+  pushToken: string;
+}

@@ -103,3 +103,20 @@ export async function presentLocalNotification(params: {
     return null;
   }
 }
+
+/**
+ * Retrieves the native FCM device push token for background notifications.
+ */
+export async function getDevicePushToken(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+
+  try {
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) return null;
+
+    const tokenData = await Notifications.getDevicePushTokenAsync();
+    return tokenData.data;
+  } catch {
+    return null;
+  }
+}

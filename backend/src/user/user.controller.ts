@@ -1,7 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiQuery } from '@nestjs/swagger';
+import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { GetUserProfileDto, UserResponseDto } from './dto/user.dto';
+import { GetUserProfileDto, UpdatePushTokenDto, UserResponseDto } from './dto/user.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('users')
@@ -9,6 +9,17 @@ import { CurrentUser } from '../auth/current-user.decorator';
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @Patch('push-token')
+  @ApiOperation({
+    summary: 'Register or update FCM device push token',
+    description: 'Registers the mobile device FCM push token for push notifications when the app is in background or closed.',
+  })
+  @ApiBody({ type: UpdatePushTokenDto })
+  @ApiResponse({ status: 200, description: 'Push token updated successfully' })
+  updatePushToken(@CurrentUser() user: any, @Body() body: UpdatePushTokenDto) {
+    return this.userService.updatePushToken(user.id, body.pushToken);
+  }
 
   @Get('profile')
   @ApiOperation({

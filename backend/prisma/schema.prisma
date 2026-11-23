@@ -16,6 +16,7 @@ model User {
   phone                String?
   passwordHash         String?
   bio                  String?
+  pushToken            String?
   createdConversations Conversation[] @relation("ConversationCreator")
   messages             Message[]
   files                File[]
