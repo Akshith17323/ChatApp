@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   TextInput,
   StyleSheet,
   ActivityIndicator,
@@ -12,10 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useUsers, useCreateConversation } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 function showScreenAlert(title, message) {
   if (Platform.OS === 'web') {
@@ -26,7 +28,7 @@ function showScreenAlert(title, message) {
 }
 
 export default function NewChatScreen({ navigation }) {
-  const { colors } = useAppTheme();
+  const { colors, reduceMotion } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { user } = useAuth();
   const { data: users, isLoading, error, refetch } = useUsers();
@@ -36,6 +38,17 @@ export default function NewChatScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [groupName, setGroupName] = useState('');
+  const [segmentWidth, setSegmentWidth] = useState(0);
+  const segmentPosition = useSharedValue(0);
+  const segmentStyle = useAnimatedStyle(() => ({
+    width: segmentWidth,
+    transform: [{ translateX: segmentPosition.get() * segmentWidth }],
+  }));
+
+  useEffect(() => {
+    const target = mode === 'GROUP' ? 1 : 0;
+    segmentPosition.set(reduceMotion ? target : withSpring(target, motion.spring));
+  }, [mode, reduceMotion, segmentPosition]);
 
   // Exclude current user from the selectable list
   const availableUsers = useMemo(() => {
@@ -122,9 +135,14 @@ export default function NewChatScreen({ navigation }) {
     const isSelected = selectedUserIds.includes(item.id);
 
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={styles.userRow}
         activeOpacity={0.7}
+        pressScale={0.99}
+        disabled={isCreating}
+        accessibilityRole={mode === 'GROUP' ? 'checkbox' : 'button'}
+        accessibilityLabel={mode === 'GROUP' ? item.name : `Message ${item.name}`}
+        accessibilityState={{ checked: mode === 'GROUP' ? isSelected : undefined }}
         onPress={() => {
           if (mode === 'DM') {
             handleStartDM(item);
@@ -152,27 +170,35 @@ export default function NewChatScreen({ navigation }) {
               ]}
             >
               {isSelected && (
-                <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
+                <Animated.View entering={motion.pop}>
+                  <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
+                </Animated.View>
               )}
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <Animated.View entering={motion.fade} style={styles.container}>
         {/* Apple Segmented Control */}
         <View style={styles.segmentContainer}>
-          <View style={styles.segmentedControl}>
-            <TouchableOpacity
-              style={[
-                styles.segmentTab,
-                mode === 'DM' && styles.segmentTabActive,
-              ]}
+          <View
+            style={styles.segmentedControl}
+            onLayout={(event) => setSegmentWidth(Math.max(0, (event.nativeEvent.layout.width - 4) / 2))}
+            accessibilityRole="radiogroup"
+          >
+            <Animated.View pointerEvents="none" style={[styles.segmentIndicator, segmentStyle]} />
+            <AnimatedPressable
+              style={styles.segmentTab}
               onPress={() => setMode('DM')}
+              disabled={isCreating}
+              pressScale={1}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: mode === 'DM' }}
             >
               <Text
                 style={[
@@ -182,13 +208,14 @@ export default function NewChatScreen({ navigation }) {
               >
                 Direct Message
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.segmentTab,
-                mode === 'GROUP' && styles.segmentTabActive,
-              ]}
+            </AnimatedPressable>
+            <AnimatedPressable
+              style={styles.segmentTab}
               onPress={() => setMode('GROUP')}
+              disabled={isCreating}
+              pressScale={1}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: mode === 'GROUP' }}
             >
               <Text
                 style={[
@@ -198,21 +225,22 @@ export default function NewChatScreen({ navigation }) {
               >
                 Group Chat
               </Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         </View>
 
         {/* Group Name input if GROUP mode */}
         {mode === 'GROUP' && (
-          <View style={styles.groupHeaderBar}>
+          <Animated.View entering={motion.enter} exiting={motion.exit} style={styles.groupHeaderBar}>
             <TextInput
               style={styles.groupNameInput}
               value={groupName}
               onChangeText={setGroupName}
               placeholder="Group Name (e.g. Project Team)"
               placeholderTextColor={colors.placeholder}
+              accessibilityLabel="Group name"
             />
-            <TouchableOpacity
+            <AnimatedPressable
               style={[
                 styles.createGroupAppleBtn,
                 (selectedUserIds.length === 0 || !groupName.trim() || isCreating) &&
@@ -220,6 +248,7 @@ export default function NewChatScreen({ navigation }) {
               ]}
               onPress={handleCreateGroup}
               disabled={selectedUserIds.length === 0 || !groupName.trim() || isCreating}
+              accessibilityState={{ busy: isCreating }}
             >
               {isCreating ? (
                 <ActivityIndicator color={colors.onPrimary} size="small" />
@@ -228,31 +257,39 @@ export default function NewChatScreen({ navigation }) {
                   Create ({selectedUserIds.length})
                 </Text>
               )}
-            </TouchableOpacity>
-          </View>
+            </AnimatedPressable>
+          </Animated.View>
         )}
 
         {/* Apple "To:" Header Line */}
-        <View style={styles.toBarContainer}>
+        <Animated.View layout={motion.layout} style={styles.toBarContainer}>
           <Text style={styles.toLabel}>To:</Text>
 
           {/* Selected chips in group mode */}
           {mode === 'GROUP' && selectedUserIds.length > 0 && (
-            <View style={styles.chipsRow}>
+            <Animated.View layout={motion.layout} style={styles.chipsRow}>
               {selectedUserIds.map((id) => {
                 const u = availableUsers.find((userItem) => userItem.id === id);
                 return (
-                  <TouchableOpacity
+                  <Animated.View
                     key={id}
-                    style={styles.contactChip}
-                    onPress={() => handleRemoveChip(id)}
+                    entering={motion.pop}
+                    exiting={motion.exit}
+                    layout={motion.layout}
                   >
-                    <Text style={styles.contactChipText}>{u?.name || 'User'}</Text>
-                    <Ionicons name="close-circle" size={14} color={colors.primary} />
-                  </TouchableOpacity>
+                    <AnimatedPressable
+                      style={styles.contactChip}
+                      onPress={() => handleRemoveChip(id)}
+                      accessibilityLabel={`Remove ${u?.name || 'recipient'}`}
+                      hitSlop={6}
+                    >
+                      <Text style={styles.contactChipText}>{u?.name || 'User'}</Text>
+                      <Ionicons name="close-circle" size={14} color={colors.primary} />
+                    </AnimatedPressable>
+                  </Animated.View>
                 );
               })}
-            </View>
+            </Animated.View>
           )}
 
           <TextInput
@@ -262,39 +299,43 @@ export default function NewChatScreen({ navigation }) {
             placeholder={selectedUserIds.length === 0 ? 'Search name' : ''}
             placeholderTextColor={colors.placeholder}
             autoCapitalize="none"
+            accessibilityLabel="Search contacts"
           />
-        </View>
+        </Animated.View>
 
         {/* User list */}
-        {isLoading || isCreating ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>
-              {isCreating ? 'Creating iMessage...' : 'Loading contacts...'}
-            </Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerContainer}>
-            <Ionicons name="alert-circle-outline" size={38} color={colors.danger} />
-            <Text style={styles.errorText}>{error.message}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-              <Text style={styles.retryBtnText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : filteredUsers.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <Text style={styles.emptyText}>No registered contacts found.</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredUsers}
-            keyExtractor={(item) => item.id}
-            renderItem={renderUserItem}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </View>
+        <Animated.View layout={motion.layout} style={styles.listContainer}>
+          {isLoading || isCreating ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.loadingText}>
+                {isCreating ? 'Starting conversation…' : 'Loading contacts…'}
+              </Text>
+            </View>
+          ) : error ? (
+            <View style={styles.centerContainer}>
+              <Ionicons name="alert-circle-outline" size={38} color={colors.danger} />
+              <Text style={styles.errorText}>{error.message}</Text>
+              <AnimatedPressable style={styles.retryBtn} onPress={() => refetch()}>
+                <Text style={styles.retryBtnText}>Try Again</Text>
+              </AnimatedPressable>
+            </View>
+          ) : filteredUsers.length === 0 ? (
+            <View style={styles.centerContainer}>
+              <Text style={styles.emptyText}>No registered contacts found.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredUsers}
+              keyExtractor={(item) => item.id}
+              renderItem={renderUserItem}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            />
+          )}
+        </Animated.View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -326,7 +367,12 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     borderRadius: 7,
   },
-  segmentTabActive: {
+  segmentIndicator: {
+    position: 'absolute',
+    left: 2,
+    top: 2,
+    bottom: 2,
+    borderRadius: 7,
     backgroundColor: colors.surface,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
@@ -420,6 +466,9 @@ const createStyles = (colors) => StyleSheet.create({
   },
   listContent: {
     paddingVertical: 4,
+  },
+  listContainer: {
+    flex: 1,
   },
   userRow: {
     flexDirection: 'row',

@@ -7,8 +7,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Appearance, Platform, useColorScheme } from 'react-native';
+import { AccessibilityInfo, Appearance, Platform, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ReducedMotionConfig, ReduceMotion, useReducedMotion } from 'react-native-reanimated';
 import { darkColors, isThemeMode, lightColors, resolveColorScheme } from '../theme/colors';
 
 const STORAGE_KEY = '@chat-app/appearance';
@@ -16,10 +17,30 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const systemScheme = useColorScheme();
+  const initialReduceMotion = useReducedMotion();
+  const [reduceMotion, setReduceMotion] = useState(initialReduceMotion);
   const [themeMode, setMode] = useState('system');
   const [storageError, setStorageError] = useState(null);
   const hasChosenMode = useRef(false);
   const writes = useRef(Promise.resolve());
+
+  useEffect(() => {
+    let mounted = true;
+    let changed = false;
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      changed = true;
+      if (mounted) setReduceMotion(enabled);
+    });
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        if (mounted && !changed) setReduceMotion(enabled);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+      subscription?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -58,11 +79,16 @@ export function ThemeProvider({ children }) {
   const isDark = resolveColorScheme(themeMode, systemScheme) === 'dark';
   const colors = isDark ? darkColors : lightColors;
   const value = useMemo(
-    () => ({ colors, isDark, themeMode, setThemeMode, storageError }),
-    [colors, isDark, themeMode, setThemeMode, storageError]
+    () => ({ colors, isDark, themeMode, setThemeMode, storageError, reduceMotion }),
+    [colors, isDark, themeMode, setThemeMode, storageError, reduceMotion]
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>
+      <ReducedMotionConfig mode={reduceMotion ? ReduceMotion.Always : ReduceMotion.Never} />
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useAppTheme() {

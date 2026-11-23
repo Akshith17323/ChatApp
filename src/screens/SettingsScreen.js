@@ -3,18 +3,19 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { userApi } from '../api/userApi';
 import AppleAvatar from '../components/AppleAvatar';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 const APPEARANCE_OPTIONS = [
   { value: 'system', label: 'System', icon: 'phone-portrait-outline' },
@@ -57,10 +58,12 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
+      <Animated.ScrollView
+        entering={motion.fade}
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.largeTitle}>Settings</Text>
 
@@ -90,20 +93,23 @@ export default function SettingsScreen() {
           {APPEARANCE_OPTIONS.map((option, index) => (
             <React.Fragment key={option.value}>
               {index > 0 && <View style={styles.rowDivider} />}
-              <TouchableOpacity
+              <AnimatedPressable
                 style={styles.appearanceRow}
                 onPress={() => setThemeMode(option.value)}
                 accessibilityRole="radio"
                 accessibilityLabel={`${option.label} appearance`}
                 accessibilityState={{ checked: themeMode === option.value }}
                 activeOpacity={0.6}
+                pressScale={0.99}
               >
                 <Ionicons name={option.icon} size={21} color={colors.primary} />
                 <Text style={styles.appearanceLabel}>{option.label}</Text>
                 {themeMode === option.value && (
-                  <Ionicons name="checkmark" size={21} color={colors.primary} />
+                  <Animated.View entering={motion.pop}>
+                    <Ionicons name="checkmark" size={21} color={colors.primary} />
+                  </Animated.View>
                 )}
-              </TouchableOpacity>
+              </AnimatedPressable>
             </React.Fragment>
           ))}
         </View>
@@ -129,22 +135,23 @@ export default function SettingsScreen() {
 
           <View style={styles.rowDivider} />
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.actionRow}
             onPress={handleSaveUrl}
             activeOpacity={0.6}
           >
             <Text style={styles.actionRowText}>Apply Server URL</Text>
             <Ionicons name="cloud-upload-outline" size={19} color={colors.primary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
 
           <View style={styles.rowDivider} />
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.actionRow}
             onPress={handleTestConnection}
             disabled={testingPing}
             activeOpacity={0.6}
+            accessibilityState={{ busy: testingPing }}
           >
             <Text style={styles.actionRowText}>Test Connection</Text>
             {testingPing ? (
@@ -152,12 +159,12 @@ export default function SettingsScreen() {
             ) : (
               <Ionicons name="pulse-outline" size={19} color={colors.primary} />
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {/* Quick presets */}
         <View style={styles.presetsRow}>
-          <TouchableOpacity
+          <AnimatedPressable
             style={[
               styles.presetChip,
               editingUrl === 'http://10.7.1.51:3000' && styles.presetChipActive,
@@ -172,8 +179,8 @@ export default function SettingsScreen() {
             >
               10.7.1.51:3000
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AnimatedPressable>
+          <AnimatedPressable
             style={[
               styles.presetChip,
               editingUrl === 'http://localhost:3000' && styles.presetChipActive,
@@ -188,8 +195,8 @@ export default function SettingsScreen() {
             >
               localhost:3000
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AnimatedPressable>
+          <AnimatedPressable
             style={[
               styles.presetChip,
               editingUrl === 'http://10.0.2.2:3000' && styles.presetChipActive,
@@ -204,11 +211,14 @@ export default function SettingsScreen() {
             >
               Emulator (10.0.2.2)
             </Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {pingResult && (
-          <View
+          <Animated.View
+            entering={motion.enter}
+            exiting={motion.exit}
+            accessibilityLiveRegion="polite"
             style={[
               styles.statusBanner,
               pingResult.success ? styles.successBanner : styles.errorBanner,
@@ -227,19 +237,19 @@ export default function SettingsScreen() {
             >
               {pingResult.message}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         {/* Account Section */}
         <Text style={styles.sectionHeader}>Account</Text>
         <View style={styles.groupedCard}>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.dangerRow}
             onPress={logout}
             activeOpacity={0.6}
           >
             <Text style={styles.dangerRowText}>Sign Out</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {/* About Section */}
@@ -264,7 +274,7 @@ export default function SettingsScreen() {
         <Text style={styles.footerNote}>
           Messages are delivered through the university 5th semester backend project.
         </Text>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

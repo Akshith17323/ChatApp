@@ -23,7 +23,7 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark, reduceMotion } = useAppTheme();
   const { user, baseUrl } = useAuth();
   const { inAppNotification, dismissInAppNotification } = useNotification();
 
@@ -68,7 +68,7 @@ function AppContent() {
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <TabNavigator />
       </NavigationContainer>
-      <StatusBar style={isDark ? 'light' : 'dark'} animated />
+      <StatusBar style={isDark ? 'light' : 'dark'} animated={!reduceMotion} />
     </MessageOutboxProvider>
   );
 }

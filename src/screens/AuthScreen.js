@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
@@ -12,9 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { DEFAULT_BASE_URL } from '../api/config';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 export default function AuthScreen() {
   const { colors } = useAppTheme();
@@ -50,7 +52,7 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Apple Messages Icon & Header */}
-          <View style={styles.headerContainer}>
+          <Animated.View entering={motion.enter} style={styles.headerContainer}>
             <View style={styles.appIconCircle}>
               <Ionicons name="chatbubble-ellipses" size={48} color={colors.onPrimary} />
             </View>
@@ -58,10 +60,10 @@ export default function AuthScreen() {
             <Text style={styles.subtitle}>
               Sign in with your username and password.
             </Text>
-          </View>
+          </Animated.View>
 
           {/* Inset Grouped Card */}
-          <View style={styles.groupedCard}>
+          <Animated.View entering={motion.enter} style={styles.groupedCard}>
             <View style={styles.inputRow}>
               <Text style={styles.rowLabel}>Username</Text>
               <TextInput
@@ -72,6 +74,7 @@ export default function AuthScreen() {
                 placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Username"
               />
             </View>
 
@@ -86,6 +89,7 @@ export default function AuthScreen() {
                 placeholder="Required"
                 placeholderTextColor={colors.placeholder}
                 secureTextEntry
+                accessibilityLabel="Password"
               />
             </View>
 
@@ -101,15 +105,16 @@ export default function AuthScreen() {
                 placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Server URL"
               />
             </View>
-          </View>
+          </Animated.View>
 
           {/* Quick preset chips */}
           <View style={styles.presetSection}>
             <Text style={styles.presetHeader}>Quick Server Presets</Text>
             <View style={styles.presetRow}>
-              <TouchableOpacity
+              <AnimatedPressable
                 style={[
                   styles.presetChip,
                   serverUrl === 'http://10.7.1.51:3000' && styles.presetChipActive,
@@ -124,8 +129,8 @@ export default function AuthScreen() {
                 >
                   10.7.1.51:3000
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </AnimatedPressable>
+              <AnimatedPressable
                 style={[
                   styles.presetChip,
                   serverUrl === 'http://localhost:3000' && styles.presetChipActive,
@@ -140,8 +145,8 @@ export default function AuthScreen() {
                 >
                   localhost:3000
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </AnimatedPressable>
+              <AnimatedPressable
                 style={[
                   styles.presetChip,
                   serverUrl === 'http://10.0.2.2:3000' && styles.presetChipActive,
@@ -156,33 +161,34 @@ export default function AuthScreen() {
                 >
                   Emulator (10.0.2.2)
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           </View>
 
           {(localError || error) ? (
-            <View style={styles.errorBox}>
+            <Animated.View entering={motion.enter} exiting={motion.exit} style={styles.errorBox} accessibilityLiveRegion="polite">
               <Ionicons name="information-circle" size={18} color={colors.danger} />
               <Text style={styles.errorBoxText}>{localError || error}</Text>
-            </View>
+            </Animated.View>
           ) : null}
 
           {/* Apple Continue Button */}
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.continueButton, isLoading && styles.continueButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
             activeOpacity={0.8}
+            accessibilityState={{ busy: isLoading }}
           >
             {isLoading ? (
               <ActivityIndicator color={colors.onPrimary} size="small" />
             ) : (
               <Text style={styles.continueButtonText}>Continue</Text>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
 
           <Text style={styles.appleFooterNote}>
-            Your user handle and chats will be synchronized securely with the NestJS backend.
+            Your chats are synchronized with your selected server.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

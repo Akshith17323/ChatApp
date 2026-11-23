@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useSocket } from '../context/SocketContext';
 import { useConversations, useUsers } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 export default function ChatListScreen({ navigation }) {
   const { colors } = useAppTheme();
@@ -24,15 +27,24 @@ export default function ChatListScreen({ navigation }) {
   const { user } = useAuth();
   const { onlineUserIds, socket } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const {
     data: conversations,
     isLoading,
-    isRefetching,
     refetch,
     error,
   } = useConversations();
 
   const { data: users } = useUsers();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Listen for real-time conversation updates over WebSocket
   useEffect(() => {
@@ -121,9 +133,11 @@ export default function ChatListScreen({ navigation }) {
     const isOnline = isDm && otherId ? onlineUserIds.has(otherId) : false;
 
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={styles.chatRow}
         activeOpacity={0.7}
+        pressScale={0.99}
+        accessibilityLabel={`Open conversation with ${title}`}
         onPress={() =>
           navigation.navigate('ChatRoom', {
             conversationId: item.id,
@@ -166,24 +180,26 @@ export default function ChatListScreen({ navigation }) {
           {/* Inset Hairline Separator */}
           <View style={styles.separator} />
         </View>
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <Animated.View entering={motion.fade} style={styles.container}>
         {/* Top iOS Navigation Bar */}
         <View style={styles.topNav}>
           <TouchableOpacity style={styles.editBtn}>
             <Text style={styles.navActionText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.composeBtn}
             onPress={() => navigation.navigate('NewChat')}
+            accessibilityLabel="New message"
+            hitSlop={8}
           >
             <Ionicons name="create-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {/* Large iOS Header Title */}
@@ -201,17 +217,18 @@ export default function ChatListScreen({ navigation }) {
               onChangeText={setSearchQuery}
               placeholder="Search"
               placeholderTextColor={colors.placeholder}
-              clearButtonMode="while-editing"
               returnKeyType="search"
+              accessibilityLabel="Search conversations"
             />
             {searchQuery.length > 0 ? (
-              <TouchableOpacity
+              <AnimatedPressable
                 onPress={() => setSearchQuery('')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
+                accessibilityLabel="Clear search"
               >
                 <Ionicons name="close-circle" size={18} color={colors.secondaryText} />
-              </TouchableOpacity>
+              </AnimatedPressable>
             ) : (
               <Ionicons name="mic" size={17} color={colors.secondaryText} style={styles.micIcon} />
             )}
@@ -229,25 +246,25 @@ export default function ChatListScreen({ navigation }) {
             <Ionicons name="alert-circle" size={48} color={colors.danger} />
             <Text style={styles.errorTitle}>Messages Unavailable</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+            <AnimatedPressable style={styles.retryBtn} onPress={() => refetch()}>
               <Text style={styles.retryBtnText}>Try Again</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         ) : filteredConversations.length === 0 ? (
           <View style={styles.centerContainer}>
             <View style={styles.emptyIconCircle}>
               <Ionicons name="chatbubble-ellipses" size={40} color={colors.primary} />
             </View>
-            <Text style={styles.emptyTitle}>No Messages</Text>
+            <Text style={styles.emptyTitle}>{searchQuery.trim() ? 'No Results' : 'No Messages'}</Text>
             <Text style={styles.emptySubtitle}>
-              Send a new iMessage to get the conversation started.
+              {searchQuery.trim() ? 'Try a different name.' : 'Start a new conversation to say hello.'}
             </Text>
-            <TouchableOpacity
+            <AnimatedPressable
               style={styles.newChatAppleBtn}
               onPress={() => navigation.navigate('NewChat')}
             >
               <Text style={styles.newChatAppleBtnText}>New Message</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         ) : (
           <FlatList
@@ -256,17 +273,18 @@ export default function ChatListScreen({ navigation }) {
             renderItem={renderConversationItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
                 tintColor={colors.primary}
                 colors={[colors.primary]}
               />
             }
           />
         )}
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }

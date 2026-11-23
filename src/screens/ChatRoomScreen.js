@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   FlatList,
   StyleSheet,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { useSocket } from '../context/SocketContext';
@@ -28,8 +28,11 @@ import { getAuthHeader, getApiConfig } from '../api';
 import { messageApi } from '../api/messageApi';
 import { fileApi } from '../api/fileApi';
 import { mergeChatMessages } from '../utils/messageOutbox';
+import { getMessageKey, updateMessageMotion } from '../utils/messageMotion';
+import { motion } from '../theme/motion';
 import AppleAvatar from '../components/AppleAvatar';
 import AppleTypingIndicator from '../components/AppleTypingIndicator';
+import AnimatedPressable from '../components/AnimatedPressable';
 
 function formatFileSize(bytes) {
   if (!bytes || bytes <= 0) return '';
@@ -38,10 +41,23 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function MessageEntrance({ messageKey, animate, onEntered, style, children }) {
+  const [shouldEnter] = useState(animate);
+  useLayoutEffect(() => {
+    onEntered(messageKey);
+  }, [messageKey, onEntered]);
+
+  return (
+    <Animated.View entering={shouldEnter ? motion.enter : undefined} style={style} collapsable={false}>
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function ChatRoomScreen({ route, navigation }) {
   const { conversationId, title, type, memberCount } = route.params;
   const { user } = useAuth();
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark, reduceMotion } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -53,7 +69,18 @@ export default function ChatRoomScreen({ route, navigation }) {
   const pickerActive = useRef(false);
   const isNearBottom = useRef(true);
   const shouldScrollToEnd = useRef(true);
+  const lastScrolledMessageKey = useRef(null);
+  const scrollMetrics = useRef({ height: 0, offset: 0 });
+  const historyScrollAnchor = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  useLayoutEffect(() => {
+    isNearBottom.current = true;
+    shouldScrollToEnd.current = true;
+    lastScrolledMessageKey.current = null;
+    scrollMetrics.current = { height: 0, offset: 0 };
+    historyScrollAnchor.current = null;
+  }, [conversationId]);
 
   const {
     socket,
@@ -186,6 +213,11 @@ export default function ChatRoomScreen({ route, navigation }) {
         from_message_cursor: cursorToFetch,
       });
       if (resp?.data?.length) {
+        isNearBottom.current = false;
+        shouldScrollToEnd.current = false;
+        if (Platform.OS === 'web') {
+          historyScrollAnchor.current = { ...scrollMetrics.current, target: scrollMetrics.current.offset };
+        }
         setOlderMessages((prev) => [...resp.data, ...prev]);
       }
       if (resp?.nextCursor) {
@@ -221,6 +253,42 @@ export default function ChatRoomScreen({ route, navigation }) {
     () => mergeChatMessages(allServerMessages, outgoingMessages),
     [allServerMessages, outgoingMessages]
   );
+
+  useLayoutEffect(() => {
+    historyScrollAnchor.current = null;
+  }, [messagesResponse?.data, outgoingMessages]);
+
+  const hasHistory = !!messagesResponse?.data;
+  const [messageMotion, setMessageMotion] = useState(() => ({
+    conversationId,
+    messages,
+    outgoingMessages,
+    olderMessages,
+    hasHistory,
+    state: updateMessageMotion(null, messages, outgoingMessages, olderMessages, hasHistory),
+  }));
+  if (messageMotion.conversationId !== conversationId || messageMotion.messages !== messages ||
+      messageMotion.outgoingMessages !== outgoingMessages || messageMotion.olderMessages !== olderMessages ||
+      messageMotion.hasHistory !== hasHistory) {
+    setMessageMotion({
+      conversationId,
+      messages,
+      outgoingMessages,
+      olderMessages,
+      hasHistory,
+      state: updateMessageMotion(messageMotion.conversationId === conversationId ? messageMotion.state : null,
+        messages, outgoingMessages, olderMessages, hasHistory),
+    });
+  }
+  const localMessageKeys = messageMotion.state.localKeys;
+  const markMessageEntered = useCallback((key) => {
+    setMessageMotion((current) => {
+      if (current.conversationId !== conversationId || !current.state.enteringKeys.has(key)) return current;
+      const enteringKeys = new Set(current.state.enteringKeys);
+      enteringKeys.delete(key);
+      return { ...current, state: { ...current.state, enteringKeys } };
+    });
+  }, [conversationId]);
 
   // On web, resolve protected attachments through authenticated API base64
   useEffect(() => {
@@ -278,23 +346,27 @@ export default function ChatRoomScreen({ route, navigation }) {
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
+      (event) => {
+        if (Platform.OS === 'ios' && !reduceMotion) Keyboard.scheduleLayoutAnimation(event);
         setIsKeyboardVisible(true);
         if (isNearBottom.current) {
           shouldScrollToEnd.current = true;
-          flatListRef.current?.scrollToEnd({ animated: true });
+          flatListRef.current?.getScrollResponder()?.scrollToEnd({ animated: !reduceMotion });
         }
       }
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setIsKeyboardVisible(false)
+      (event) => {
+        if (Platform.OS === 'ios' && !reduceMotion) Keyboard.scheduleLayoutAnimation(event);
+        setIsKeyboardVisible(false);
+      }
     );
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [reduceMotion]);
 
   // Configure Apple-style navigation header
   useLayoutEffect(() => {
@@ -327,7 +399,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       },
       headerShadowVisible: true,
       headerRight: () => (
-        <TouchableOpacity
+        <AnimatedPressable
           onPress={() => refetch()}
           style={styles.headerRefreshBtn}
           activeOpacity={0.7}
@@ -335,7 +407,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           accessibilityLabel="Refresh messages"
         >
           <Ionicons name="refresh-outline" size={24} color={colors.primary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       ),
     });
   }, [navigation, title, type, memberCount, refetch, colors, styles]);
@@ -512,6 +584,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   };
 
   const renderMessageItem = ({ item, index }) => {
+    const messageKey = getMessageKey(item, localMessageKeys);
     const isMine = item.senderId === user?.id;
     const isLastMessage = index === messages.length - 1;
     const senderName = isMine
@@ -541,7 +614,12 @@ export default function ChatRoomScreen({ route, navigation }) {
     }
 
     return (
-      <View style={styles.messageWrapper}>
+      <MessageEntrance
+        messageKey={messageKey}
+        animate={!reduceMotion && messageMotion.state.enteringKeys.has(messageKey)}
+        onEntered={markMessageEntered}
+        style={styles.messageWrapper}
+      >
         {!isMine && type === 'GROUP' && (
           <Text style={styles.groupSenderLabel}>{senderName}</Text>
         )}
@@ -561,9 +639,10 @@ export default function ChatRoomScreen({ route, navigation }) {
             ]}
           >
             {hasImage && (
-              <TouchableOpacity
+              <AnimatedPressable
                 activeOpacity={0.88}
                 onPress={() => setPreviewImage(imageUri)}
+                accessibilityLabel={`View photo from ${senderName}`}
               >
                 <Image
                   source={{
@@ -576,7 +655,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                   style={styles.messageImage}
                   resizeMode="cover"
                 />
-              </TouchableOpacity>
+              </AnimatedPressable>
             )}
 
             {isFile && (
@@ -643,7 +722,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 />
               )}
               {isMine && !isPending && !isFailed && !!item.id && (
-                <TouchableOpacity
+                <AnimatedPressable
                   onPress={() => handleDeleteMessage(item)}
                   style={styles.deleteIconBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -655,29 +734,29 @@ export default function ChatRoomScreen({ route, navigation }) {
                     size={11}
                     color={colors.onPrimaryMuted}
                   />
-                </TouchableOpacity>
+                </AnimatedPressable>
               )}
             </View>
           </View>
         </View>
 
         {isPending && (
-          <View style={styles.localStatusRow} accessibilityLiveRegion="polite">
+          <Animated.View entering={motion.fade} exiting={motion.exit} style={styles.localStatusRow} accessibilityLiveRegion="polite">
             <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.localStatusText}>
               {item.localStatus === 'uploading' ? 'Uploading photo…' : 'Sending…'}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         {isFailed && (
-          <View style={styles.failedMessageInfo} accessibilityLiveRegion="polite">
+          <Animated.View entering={motion.enter} exiting={motion.exit} style={styles.failedMessageInfo} accessibilityLiveRegion="polite">
             <Text style={styles.failedMessageTitle}>
               {item.deliveryUncertain ? 'Delivery unconfirmed' : 'Not sent'}
             </Text>
             <Text style={styles.failedMessageError} numberOfLines={3}>{item.error}</Text>
             <View style={styles.failedMessageActions}>
-              <TouchableOpacity
+              <AnimatedPressable
                 style={[styles.messageAction, isSendBusy && styles.sendButtonDisabled]}
                 onPress={() => handleRetry(item)}
                 disabled={isSendBusy}
@@ -687,9 +766,9 @@ export default function ChatRoomScreen({ route, navigation }) {
               >
                 <Ionicons name="refresh" size={15} color={colors.primary} />
                 <Text style={styles.messageActionText}>Retry</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
               {!hasImage && hasText && (
-                <TouchableOpacity
+                <AnimatedPressable
                   style={styles.messageAction}
                   onPress={() => handleEditFailed(item)}
                   accessibilityRole="button"
@@ -697,16 +776,16 @@ export default function ChatRoomScreen({ route, navigation }) {
                 >
                   <Ionicons name="pencil" size={15} color={colors.primary} />
                   <Text style={styles.messageActionText}>Edit</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               )}
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {isMine && isLastMessage && appleStatus && (
-          <Text style={styles.appleStatusText}>{appleStatus}</Text>
+          <Animated.Text key={appleStatus} entering={motion.fade} style={styles.appleStatusText}>{appleStatus}</Animated.Text>
         )}
-      </View>
+      </MessageEntrance>
     );
   };
 
@@ -728,23 +807,25 @@ export default function ChatRoomScreen({ route, navigation }) {
             <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
             <Text style={styles.errorTitle}>Could not load messages</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+            <AnimatedPressable style={styles.retryBtn} onPress={() => refetch()}>
               <Text style={styles.retryBtnText}>Try Again</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         ) : (
           <FlatList
+            key={conversationId}
             ref={flatListRef}
             data={messages}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => getMessageKey(item, localMessageKeys)}
             renderItem={renderMessageItem}
             contentContainerStyle={styles.messagesList}
-            keyboardDismissMode="interactive"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
             initialNumToRender={20}
             maxToRenderPerBatch={15}
             windowSize={11}
             removeClippedSubviews={Platform.OS === 'android'}
+            maintainVisibleContentPosition={Platform.OS === 'web' ? undefined : { minIndexForVisible: 1 }}
             ListHeaderComponent={
               <View>
                 {!hasNoMoreOlder && (olderCursor || messagesResponse?.nextCursor) ? (
@@ -752,7 +833,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                     {isLoadingOlder ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <TouchableOpacity
+                      <AnimatedPressable
                         onPress={loadEarlierMessages}
                         style={styles.loadOlderButton}
                         activeOpacity={0.7}
@@ -760,7 +841,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                         accessibilityLabel="Load earlier messages"
                       >
                         <Text style={styles.loadOlderText}>Load earlier messages</Text>
-                      </TouchableOpacity>
+                      </AnimatedPressable>
                     )}
                   </View>
                 ) : null}
@@ -768,19 +849,19 @@ export default function ChatRoomScreen({ route, navigation }) {
                   <Text style={styles.dateStampText}>Messages</Text>
                 </View>
                 {error && (
-                  <View style={styles.refreshErrorBanner}>
+                  <Animated.View entering={motion.fade} style={styles.refreshErrorBanner}>
                     <Text style={styles.refreshErrorText}>
                       Could not refresh messages. Your messages are still shown below.
                     </Text>
-                    <TouchableOpacity
+                    <AnimatedPressable
                       onPress={() => refetch()}
                       style={styles.messageAction}
                       accessibilityRole="button"
                       accessibilityLabel="Try refreshing messages again"
                     >
                       <Text style={styles.messageActionText}>Try Again</Text>
-                    </TouchableOpacity>
-                  </View>
+                    </AnimatedPressable>
+                  </Animated.View>
                 )}
                 {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
               </View>
@@ -803,12 +884,45 @@ export default function ChatRoomScreen({ route, navigation }) {
             )}
             onScroll={({ nativeEvent }) => {
               const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-              isNearBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+              scrollMetrics.current.offset = contentOffset.y;
+              // A content resize is not the user scrolling away from the bottom.
+              if (Math.abs(contentSize.height - scrollMetrics.current.height) < 1) {
+                isNearBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+                if (historyScrollAnchor.current && Math.abs(contentOffset.y - historyScrollAnchor.current.target) > 1) {
+                  historyScrollAnchor.current = null;
+                }
+              }
+            }}
+            onScrollBeginDrag={() => {
+              isNearBottom.current = false;
+              shouldScrollToEnd.current = false;
+              historyScrollAnchor.current = null;
             }}
             scrollEventThrottle={16}
-            onContentSizeChange={() => {
+            onLayout={() => {
               if (isNearBottom.current || shouldScrollToEnd.current) {
-                flatListRef.current?.scrollToEnd({ animated: false });
+                flatListRef.current?.getScrollResponder()?.scrollToEnd({ animated: false });
+              }
+            }}
+            onContentSizeChange={(_width, height) => {
+              scrollMetrics.current.height = height;
+              if (historyScrollAnchor.current) {
+                const anchor = historyScrollAnchor.current;
+                // Virtualized rows are measured in batches, not in one content resize.
+                anchor.target = Math.max(0, anchor.offset + height - anchor.height);
+                flatListRef.current?.scrollToOffset({
+                  offset: anchor.target,
+                  animated: false,
+                });
+                return;
+              }
+              if (isNearBottom.current || shouldScrollToEnd.current) {
+                const latestKey = messages.length ? getMessageKey(messages[messages.length - 1], localMessageKeys) : null;
+                // Use actual content height, not FlatList's estimates for variable-height bubbles.
+                flatListRef.current?.getScrollResponder()?.scrollToEnd({
+                  animated: !reduceMotion && !!lastScrolledMessageKey.current && latestKey !== lastScrolledMessageKey.current,
+                });
+                lastScrolledMessageKey.current = latestKey;
                 shouldScrollToEnd.current = false;
               }
             }}
@@ -817,11 +931,13 @@ export default function ChatRoomScreen({ route, navigation }) {
 
         {/* Real-time typing indicator */}
         {typingUsers[conversationId] && typingUsers[conversationId]?.userId !== user?.id && (
-          <AppleTypingIndicator
-            userName={typingUsers[conversationId]?.userName}
-            colors={colors}
-            isDark={isDark}
-          />
+          <Animated.View entering={motion.fade} exiting={motion.exit}>
+            <AppleTypingIndicator
+              userName={typingUsers[conversationId]?.userName}
+              colors={colors}
+              isDark={isDark}
+            />
+          </Animated.View>
         )}
 
         {/* Apple Messages Bottom Input Bar */}
@@ -836,7 +952,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           ]}
         >
           {/* Circular + button for images */}
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.plusButton}
             activeOpacity={0.6}
             onPress={handleAttachmentPress}
@@ -850,10 +966,10 @@ export default function ChatRoomScreen({ route, navigation }) {
             ) : (
               <Ionicons name="add" size={20} color={colors.text} />
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
 
           {/* Capsule Text Input */}
-          <View style={styles.textInputPill}>
+          <Animated.View layout={motion.layout} style={styles.textInputPill}>
             <TextInput
               style={styles.textInput}
               value={inputText}
@@ -866,31 +982,27 @@ export default function ChatRoomScreen({ route, navigation }) {
             />
 
             {/* Apple upward arrow Send Button */}
-            {inputText.trim().length > 0 ? (
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  isSendBusy && styles.sendButtonDisabled,
-                ]}
-                onPress={handleSend}
-                disabled={isSendBusy}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Send message"
-                accessibilityState={{ disabled: isSendBusy }}
-              >
+            <AnimatedPressable
+              style={[
+                styles.sendButton,
+                (!inputText.trim() || isSendBusy) && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || isSendBusy}
+              activeOpacity={0.7}
+              accessibilityLabel="Send message"
+              accessibilityState={{ busy: isSendBusy }}
+              hitSlop={8}
+            >
+              <Animated.View key={isSendBusy ? 'busy' : inputText.trim() ? 'ready' : 'empty'} entering={motion.pop}>
                 {isSendBusy ? (
                   <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
                   <Ionicons name="arrow-up" size={17} color={colors.onPrimary} />
                 )}
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.audioWaveBtn} activeOpacity={0.6}>
-                <Ionicons name="mic" size={19} color={colors.secondaryText} />
-              </TouchableOpacity>
-            )}
-          </View>
+              </Animated.View>
+            </AnimatedPressable>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
 
@@ -898,18 +1010,19 @@ export default function ChatRoomScreen({ route, navigation }) {
       <Modal
         visible={!!previewImage}
         transparent={true}
-        animationType="fade"
+        animationType={reduceMotion ? 'none' : 'fade'}
         onRequestClose={() => setPreviewImage(null)}
       >
         <View style={styles.modalBackdrop}>
           <SafeAreaView style={styles.modalSafeArea}>
-            <TouchableOpacity
+            <AnimatedPressable
               style={styles.modalCloseBtn}
               onPress={() => setPreviewImage(null)}
               activeOpacity={0.7}
+              accessibilityLabel="Close photo preview"
             >
               <Ionicons name="close" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
+            </AnimatedPressable>
             {previewImage && (
               <Image
                 source={{
@@ -1138,14 +1251,6 @@ const createStyles = (colors) => StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.6,
-  },
-  audioWaveBtn: {
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 6,
-    marginBottom: 1,
   },
   imageBubble: {
     paddingHorizontal: 4,

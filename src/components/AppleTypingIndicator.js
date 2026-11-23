@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Animated, Text } from 'react-native';
+import { View, StyleSheet, Animated, Text, AppState, Platform } from 'react-native';
 import { useAppTheme } from '../context/ThemeContext';
 import AppleAvatar from './AppleAvatar';
 
@@ -7,28 +7,39 @@ export default function AppleTypingIndicator({ userName, colors: propColors, isD
   const theme = useAppTheme();
   const colors = propColors || theme.colors;
   const isDark = propIsDark !== undefined ? propIsDark : theme.isDark;
+  const { reduceMotion } = theme;
+  const [isActive, setIsActive] = useState(!AppState.currentState || AppState.currentState === 'active');
 
   const [dot1] = useState(() => new Animated.Value(0));
   const [dot2] = useState(() => new Animated.Value(0));
   const [dot3] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => setIsActive(state === 'active'));
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    [dot1, dot2, dot3].forEach((dot) => dot.setValue(0));
+    if (reduceMotion || !isActive) return;
+
+    const config = { useNativeDriver: Platform.OS !== 'web', isInteraction: false };
     const createPulse = (dot, delay) => {
       return Animated.sequence([
-        Animated.delay(delay),
+        Animated.timing(dot, { ...config, toValue: 0, duration: 0, delay }),
         Animated.loop(
           Animated.sequence([
             Animated.timing(dot, {
-              toValue: -4,
-              duration: 320,
-              useNativeDriver: true,
+              ...config,
+              toValue: -3,
+              duration: 280,
             }),
             Animated.timing(dot, {
+              ...config,
               toValue: 0,
-              duration: 320,
-              useNativeDriver: true,
+              duration: 280,
             }),
-            Animated.delay(360),
+            Animated.timing(dot, { ...config, toValue: 0, duration: 440 }),
           ])
         ),
       ]);
@@ -47,13 +58,18 @@ export default function AppleTypingIndicator({ userName, colors: propColors, isD
       anim2.stop();
       anim3.stop();
     };
-  }, [dot1, dot2, dot3]);
+  }, [dot1, dot2, dot3, reduceMotion, isActive]);
 
   const dotColor = isDark ? '#AEAEB2' : '#8E8E93';
   const bubbleBg = isDark ? '#2C2C2E' : '#E9E9EB';
 
   return (
-    <View style={styles.container} accessibilityLiveRegion="polite">
+    <View
+      style={styles.container}
+      accessible
+      accessibilityLabel={`${userName || 'Someone'} is typing`}
+      accessibilityLiveRegion="polite"
+    >
       <AppleAvatar name={userName || 'User'} size={28} />
       <View style={styles.contentColumn}>
         <View style={[styles.bubble, { backgroundColor: bubbleBg }]}>

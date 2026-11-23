@@ -3,14 +3,15 @@ import {
   Animated,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../context/ThemeContext';
+import { motion } from '../theme/motion';
 import AppleAvatar from './AppleAvatar';
+import AnimatedPressable from './AnimatedPressable';
 
 export default function InAppNotificationBanner({
   visible,
@@ -19,51 +20,37 @@ export default function InAppNotificationBanner({
   onDismiss,
 }) {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useAppTheme();
-  const [activeNotification, setActiveNotification] = useState(notification);
+  const { colors, isDark, reduceMotion } = useAppTheme();
+  const [activeNotification, setActiveNotification] = useState(visible ? notification : null);
   const [translateY] = useState(() => new Animated.Value(-160));
   const [opacity] = useState(() => new Animated.Value(0));
+  const isVisible = visible && !!notification;
+
+  if (isVisible && activeNotification !== notification) setActiveNotification(notification);
+  if (!isVisible && reduceMotion && activeNotification) setActiveNotification(null);
 
   useEffect(() => {
-    if (visible && notification) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 120,
-          friction: 8,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 120,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -160,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 140,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) {
-          setActiveNotification(null);
-        }
-      });
+    if (reduceMotion) {
+      translateY.setValue(isVisible ? 0 : -160);
+      opacity.setValue(isVisible ? 1 : 0);
+      return;
     }
-  }, [visible, notification, translateY, opacity]);
 
-  if (!visible && !activeNotification) {
-    return null;
-  }
+    const config = { useNativeDriver: Platform.OS !== 'web', isInteraction: false };
+    const animation = Animated.parallel([
+      isVisible
+        ? Animated.spring(translateY, { ...motion.spring, ...config, toValue: 0 })
+        : Animated.timing(translateY, { ...config, toValue: -160, duration: 180 }),
+      Animated.timing(opacity, { ...config, toValue: isVisible ? 1 : 0, duration: 140 }),
+    ]);
+    animation.start(({ finished }) => {
+      if (finished && !isVisible) setActiveNotification(null);
+    });
+    return () => animation.stop();
+  }, [isVisible, notification, reduceMotion, translateY, opacity]);
 
-  const currentNotif = notification || activeNotification;
+  const currentNotif = isVisible ? notification : activeNotification;
+  if (!currentNotif) return null;
   const title = currentNotif?.title || 'New Message';
   const body = currentNotif?.body || '';
 
@@ -77,11 +64,12 @@ export default function InAppNotificationBanner({
           opacity,
         },
       ]}
-      pointerEvents={visible ? 'auto' : 'none'}
+      pointerEvents={isVisible ? 'auto' : 'none'}
+      accessibilityLiveRegion="polite"
+      accessibilityElementsHidden={!isVisible}
+      importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
     >
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onPress}
+      <View
         style={[
           styles.card,
           {
@@ -91,30 +79,42 @@ export default function InAppNotificationBanner({
           },
         ]}
       >
-        <AppleAvatar name={title} size={38} />
-        <View style={styles.textContainer}>
-          <View style={styles.headerRow}>
+        <AnimatedPressable
+          style={styles.openButton}
+          onPress={onPress}
+          disabled={!isVisible}
+          pressScale={0.99}
+          activeOpacity={0.9}
+          accessibilityLabel={`New message from ${title}: ${body}`}
+          accessibilityHint="Open conversation"
+        >
+          <AppleAvatar name={title} size={38} />
+          <View style={styles.textContainer}>
+            <View style={styles.headerRow}>
+              <Text
+                style={[styles.title, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+              <Text style={[styles.timeLabel, { color: colors.secondaryText }]}>
+                now
+              </Text>
+            </View>
             <Text
-              style={[styles.title, { color: colors.text }]}
-              numberOfLines={1}
+              style={[styles.body, { color: colors.secondaryText }]}
+              numberOfLines={2}
             >
-              {title}
-            </Text>
-            <Text style={[styles.timeLabel, { color: colors.secondaryText }]}>
-              now
+              {body}
             </Text>
           </View>
-          <Text
-            style={[styles.body, { color: colors.secondaryText }]}
-            numberOfLines={2}
-          >
-            {body}
-          </Text>
-        </View>
+        </AnimatedPressable>
 
-        <TouchableOpacity
+        <AnimatedPressable
           onPress={onDismiss}
           style={styles.closeButton}
+          disabled={!isVisible}
+          accessibilityLabel="Dismiss notification"
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Ionicons
@@ -122,8 +122,8 @@ export default function InAppNotificationBanner({
             size={18}
             color={isDark ? '#8E8E93' : '#AEAEB2'}
           />
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </AnimatedPressable>
+      </View>
     </Animated.View>
   );
 }
@@ -162,6 +162,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     marginRight: 8,
+  },
+  openButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerRow: {
     flexDirection: 'row',
