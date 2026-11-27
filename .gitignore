@@ -45,3 +45,5 @@ yarn-error.*
 
 FEATURES.md
 REFACTORING_PLAN.md
+.venv
+*.apk

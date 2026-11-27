@@ -1,6 +1,6 @@
 # Chat App Backend API Integration Guide
 
-This React Native Expo application integrates with the NestJS + MongoDB Chat Backend documented at:
+This React Native Expo application integrates with the NestJS + PostgreSQL Chat Backend documented at:
 **Swagger UI:** [http://10.7.1.51:3000/docs#/](http://10.7.1.51:3000/docs#/)
 
 ---
@@ -32,7 +32,7 @@ Authorization: Basic <username>:<password>
     ```
 
 - **`GET /user/profile`**
-  - **Query Params:** `?user_id=<mongo_id>` *(optional, defaults to authenticated caller)*
+  - **Query Params:** `?user_id=<user_id>` *(optional, defaults to authenticated caller)*
   - **Response:** `UserResponseDto`
     ```json
     { "id": "64b8f9e2c4a3b12d4e5f6789", "name": "Alice", "bio": "Building cool stuff" }
@@ -74,7 +74,7 @@ Authorization: Basic <username>:<password>
 ### ✉️ Message Endpoints (`/message`)
 - **`GET /message`**
   - **Query Params:**
-    - `conversation_id`: MongoDB ObjectId of conversation (*required*)
+    - `conversation_id`: Unique identifier of conversation (*required*)
     - `from_message_cursor`: ObjectId of cursor message (*optional, for pagination*)
   - **Response:** `PaginatedMessagesResponseDto`
     ```json
@@ -107,16 +107,48 @@ Authorization: Basic <username>:<password>
     ```
   - **Response:** `MessageResponseDto`
 
+- **`DELETE /message/:id`**
+  - **Summary:** Delete a message by ID. Only the original sender can delete their message.
+  - **Response:** `{ "success": true, "id": "64b8f9e2c4a3b12d4e5f1234" }`
+
+---
+
+### ⚡ Real-Time WebSockets (`Socket.io`)
+
+The backend exposes a WebSocket Gateway on the same port:
+- **Connection Handshake:**
+  ```js
+  const socket = io(SERVER_URL, {
+    auth: { username: "Alice", password: "SecretPassword123" }
+  });
+  ```
+- **Events Emitted by Server:**
+  - `connected`: `{ userId, onlineUserIds: string[] }`
+  - `presence:update`: `{ userId, isOnline: boolean }`
+  - `conversation:updated`: `{ conversationId, lastMessage }`
+  - `message:new`: `{ conversationId, message }`
+  - `message:deleted`: `{ conversationId, messageId }`
+  - `typing:update`: `{ conversationId, userId, userName, isTyping: boolean }`
+  - `message:read`: `{ conversationId, messageId, userId }`
+- **Events Sent by Client:**
+  - `room:join`: `{ conversationId }` (verifies conversation membership)
+  - `room:leave`: `{ conversationId }`
+  - `typing:start`: `{ conversationId }`
+  - `typing:stop`: `{ conversationId }`
+  - `message:read`: `{ conversationId, messageId }`
+
 ---
 
 ## 3. Client Architecture
 
 The API module is located in `src/api/`:
 - `src/api/types.ts`: Complete TypeScript interfaces for all DTOs and models.
-- `src/api/config.ts`: Base URL configuration (`http://10.7.1.51:3000`), plain text Basic Auth header generation, and typed `apiFetch`.
+- `src/api/config.ts`: Base URL configuration, plain text Basic Auth header generation, and typed `apiFetch`.
+- `src/api/socket.ts`: Singleton Socket.io client with reconnection logic.
 - `src/api/userApi.ts`: User endpoints (`getAllUsers`, `getUserProfile`).
 - `src/api/conversationApi.ts`: Conversation endpoints (`getConversations`, `createConversation`, `startDirectMessage`, `createGroup`).
-- `src/api/messageApi.ts`: Message endpoints (`getMessages`, `sendMessage`).
+- `src/api/messageApi.ts`: Message endpoints (`getMessages`, `sendMessage`, `deleteMessage`).
+- `src/context/SocketContext.js`: React context managing presence, typing indicators, and room subscriptions.
 - `src/api/hooks.ts`: TanStack React Query hooks with automatic caching and polling:
   - `useUsers()`
   - `useCurrentUser()`

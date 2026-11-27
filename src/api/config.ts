@@ -1,6 +1,6 @@
 import type { ApiConfig } from './types';
 
-export const DEFAULT_BASE_URL = 'http://10.7.1.51:3000';
+export const DEFAULT_BASE_URL = 'http://10.7.11.175:3000';
 
 let currentConfig: ApiConfig = {
   baseUrl: DEFAULT_BASE_URL,

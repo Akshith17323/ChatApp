@@ -1,6 +1,6 @@
 # Chat App Backend
 
-NestJS + Prisma + MongoDB + Swagger
+NestJS + Prisma + PostgreSQL + Swagger
 
 ## Stack
 
@@ -8,7 +8,7 @@ NestJS + Prisma + MongoDB + Swagger
 |--|--|
 | Framework | NestJS v11 |
 | ORM | Prisma v6 |
-| Database | MongoDB 7.0 (Replica Set) |
+| Database | PostgreSQL 16 (Alpine) |
 | API Docs | Swagger UI → `http://localhost:3000/docs` |
 
 ---
@@ -19,7 +19,7 @@ NestJS + Prisma + MongoDB + Swagger
 # 1. Copy env
 cp .env.example .env
 
-# 2. Start everything (MongoDB + API)
+# 2. Start everything (PostgreSQL + API)
 npm run docker:up
 
 # With FactBot simulation enabled
@@ -70,7 +70,6 @@ Creates 5 bot users on startup. Every 10s, **every real user** receives a random
 
 - **Interactive Message Logs**: Real messages log sender, receiver, and conversation with deterministic user colors.
 - **Bot Logs**: FactBots log a single `[BOT] 🤖 Bot is Chatting...` entry per cycle.
-- **MongoDB Logs**: Controlled by `MONGO_SILENT_LOGS` in `.env` (defaults to `true` to keep Docker output clean). Set to `false` for raw Mongo engine logs.
 
 ---
 
@@ -173,8 +172,21 @@ const data = await FileSystem.readAsStringAsync(doc.uri, { encoding: FileSystem.
 await api.post('/file', { file_name: doc.name, mime_type: doc.mimeType, data });
 ```
 
-Files are stored in the `files` collection in MongoDB as binary (`Bytes`), not as base64 text.
+Files are stored in the `files` table in PostgreSQL as binary (`Bytes`), not as base64 text.
 After pulling these changes, run `npm run prisma:generate` (Docker does this on build).
+
+---
+
+## Real-Time WebSockets (`Socket.io`)
+
+The server runs a WebSocket Gateway at `ws://<host>:<port>` with CORS enabled.
+
+- **Authentication:** Send `auth: { username, password }` or `Authorization: Basic ...` on handshake.
+- **Presence:** `presence:update` broadcasts `{ userId, isOnline }`.
+- **Rooms:** `room:join` and `room:leave` with `{ conversationId }` (validates participant membership).
+- **Typing:** `typing:start` and `typing:stop` broadcast `{ conversationId, userId, userName, isTyping }`.
+- **Live Push:** `message:new` immediately delivers new messages; `message:deleted` delivers deleted message IDs.
+- **Read Receipts:** `message:read` broadcasts `{ conversationId, messageId, userId }`.
 
 ---
 

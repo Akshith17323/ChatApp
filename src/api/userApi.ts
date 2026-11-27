@@ -20,4 +20,15 @@ export const userApi = {
     const query = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
     return apiFetch<User>(`/user/profile${query}`);
   },
+
+  /**
+   * Register or update the user's device push token for background notifications.
+   * PATCH /user/push-token
+   */
+  async updatePushToken(pushToken: string): Promise<{ success: boolean }> {
+    return apiFetch<{ success: boolean }>('/user/push-token', {
+      method: 'PATCH',
+      body: JSON.stringify({ pushToken }),
+    });
+  },
 };

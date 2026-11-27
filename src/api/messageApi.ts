@@ -34,4 +34,14 @@ export const messageApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Delete a message by ID. Only the original sender can delete their message.
+   * DELETE /message/:id
+   */
+  async deleteMessage(messageId: string): Promise<{ success: boolean; id: string }> {
+    return apiFetch<{ success: boolean; id: string }>(`/message/${encodeURIComponent(messageId)}`, {
+      method: 'DELETE',
+    });
+  },
 };

@@ -267,3 +267,68 @@ test('file access control: conversation participant CAN download shared file (20
   const file = await service.getForDownload(FILE_ID, BOB);
   assert.equal(file.id, FILE_ID);
 });
+
+test('message delete: sender CAN delete their own message (200 OK)', async () => {
+  let deletedId = null;
+  const service = new MessageService({
+    message: {
+      findUnique: async ({ where }) => ({ id: where.id, senderId: ALICE, conversationId: CHAT }),
+      delete: async ({ where }) => { deletedId = where.id; return { id: where.id }; },
+    },
+  });
+
+  const res = await service.deleteMessage('msg-123', ALICE);
+  assert.equal(res.success, true);
+  assert.equal(deletedId, 'msg-123');
+});
+
+test('message delete: another user cannot delete message (403 Forbidden)', async () => {
+  const service = new MessageService({
+    message: {
+      findUnique: async () => ({ id: 'msg-123', senderId: ALICE, conversationId: CHAT }),
+    },
+  });
+
+  await assert.rejects(service.deleteMessage('msg-123', BOB), hasStatus(403));
+});
+
+test('message delete: non-existent message returns 404 Not Found', async () => {
+  const service = new MessageService({
+    message: {
+      findUnique: async () => null,
+    },
+  });
+
+  await assert.rejects(service.deleteMessage('msg-nonexistent', ALICE), hasStatus(404));
+});
+
+test('bot service: routes through messageService to broadcast on WebSockets when present', async () => {
+  const { BotService } = require('../dist/bot/bot.service');
+  let dispatched = null;
+  const mockMessageService = {
+    createMessage: async (dto, senderId) => {
+      dispatched = { dto, senderId };
+      return { id: 'bot-msg-1' };
+    },
+  };
+  const mockPrisma = {
+    user: {
+      findUnique: async () => ({ id: 'bot-id', name: 'FactBot', phone: null }),
+      findMany: async () => [{ id: 'user-alice', name: 'alice' }],
+    },
+    conversation: {
+      findFirst: async () => ({ id: 'conv-dm-bot', name: '[DM] FactBot', participants_ids: ['bot-id', 'user-alice'] }),
+    },
+  };
+
+  const botService = new BotService(mockPrisma, mockMessageService);
+  await botService.onModuleInit();
+  botService.onModuleDestroy();
+
+  await botService['sendBotMessages']();
+
+  assert.ok(dispatched);
+  assert.equal(dispatched.senderId, 'bot-id');
+  assert.equal(dispatched.dto.conversation_id, 'conv-dm-bot');
+  assert.ok(typeof dispatched.dto.content === 'string' && dispatched.dto.content.length > 0);
+});

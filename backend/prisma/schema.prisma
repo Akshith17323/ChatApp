@@ -6,66 +6,73 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id              String         @id @default(auto()) @map("_id") @db.ObjectId
-  name            String         @unique
-  phone           String?
-  passwordHash    String?
-  bio             String?
-  conversationIds String[]       @db.ObjectId
-  conversations   Conversation[] @relation(fields: [conversationIds], references: [id])
-  messages        Message[]
+  id                   String         @id @default(uuid())
+  name                 String         @unique
+  phone                String?
+  passwordHash         String?
+  bio                  String?
+  pushToken            String?
+  createdConversations Conversation[] @relation("ConversationCreator")
+  messages             Message[]
+  files                File[]
 
   @@map("users")
 }
 
 model Conversation {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  name       String?
-  type       String    // "DM" | "GROUP"
-  createdAt  DateTime  @default(now())
-  createdBy  String    @db.ObjectId
-  participants_ids String[]  @map("userIds") @db.ObjectId
-  users            User[]    @relation(fields: [participants_ids], references: [id])
+  id               String    @id @default(uuid())
+  name             String?
+  type             String    // "DM" | "GROUP"
+  createdAt        DateTime  @default(now())
+  createdBy        String
+  creator          User      @relation("ConversationCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  participants_ids String[]
   messages         Message[]
 
+  @@index([participants_ids], type: Gin)
+  @@index([createdAt(sort: Desc)])
   @@map("conversations")
 }
 
 model Message {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(uuid())
   content        String?
   imageInfo      String?
   createdAt      DateTime     @default(now())
-  senderId       String       @db.ObjectId
-  sender         User         @relation(fields: [senderId], references: [id])
-  conversationId String       @db.ObjectId
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   status         Json
   // Optional attachment (image or file). Null for plain text messages.
-  fileId         String?      @db.ObjectId
-  file           File?        @relation(fields: [fileId], references: [id])
+  fileId         String?
+  file           File?        @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([senderId])
   @@map("messages")
 }
 
 // An uploaded image or file. Clients send it as base64 or as a URL the server downloads;
 // either way the bytes are stored here as binary.
 model File {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  id         String    @id @default(uuid())
   name       String
   mimeType   String
   size       Int       // size in bytes (decoded, not base64)
   kind       String    // "IMAGE" | "FILE"
   data       Bytes
   sourceUrl  String?   // the link it was downloaded from; null for base64 uploads
-  uploadedBy String    @db.ObjectId
+  uploadedBy String
+  uploader   User      @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
   createdAt  DateTime  @default(now())
   messages   Message[]
 
+  @@index([uploadedBy])
   @@map("files")
 }

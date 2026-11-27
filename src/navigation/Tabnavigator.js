@@ -28,7 +28,6 @@ export default function TabNavigator() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
-          letterSpacing: -0.2,
         },
         tabBarIcon: ({ color, size, focused }) => {
           let iconName = 'chatbubble-ellipses';

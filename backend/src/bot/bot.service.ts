@@ -1,5 +1,7 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MessageService } from '../message/message.service';
+import { ChatGateway } from '../message/chat.gateway';
 import { FACTS } from './facts.data';
 
 // ─── Single Fixed Bot User ──────────────────────────────────────────────────
@@ -12,7 +14,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   private botUserId: string | null = null;
   private factIndex = 0;
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly messageService?: MessageService,
+    @Optional() private readonly chatGateway?: ChatGateway,
+  ) { }
 
   async onModuleInit() {
     this.logger.log('Bot simulation enabled (BOT_MODE=true)');
@@ -44,7 +50,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     if (!user) {
       try {
         user = await this.prisma.user.create({
-          data: { name: BOT_USER.name, bio: 'I am a FactBot 🤖', conversationIds: [] },
+          data: { name: BOT_USER.name, bio: 'I am a FactBot 🤖' },
         });
       } catch (error) {
         if (error.code !== 'P2002') throw error;
@@ -56,12 +62,18 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       await this.prisma.user.update({ where: { id: user.id }, data: { phone: null } });
     }
     this.botUserId = user.id;
+    if (this.botUserId) {
+      this.chatGateway?.setBotOnline(this.botUserId);
+    }
   }
 
   // ─── Core loop: every tick, EVERY real user gets a fact in the same DM ───
   private async sendBotMessages() {
     try {
       if (!this.botUserId) return;
+
+      // Ensure bot stays marked online
+      this.chatGateway?.setBotOnline(this.botUserId);
 
       // Get all real (non-bot) users
       const realUsers = await this.prisma.user.findMany({
@@ -82,24 +94,43 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         const conversation = await this.findOrCreateDm(realUser.id);
         if (!conversation) continue;
 
-        // Pick next fact (cycle)
+        // 1. Emit live typing indicator before sending (1200ms preview)
+        if (this.chatGateway) {
+          this.chatGateway.broadcastTyping(conversation.id, this.botUserId, BOT_USER.name, true);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+
+        // 2. Pick next fact (cycle)
         const fact = FACTS[this.factIndex % FACTS.length];
         this.factIndex++;
 
-        // Build status payload
-        const status: Record<string, { delivered: boolean; read: boolean }> = {
-          [this.botUserId]: { delivered: true, read: true },
-          [realUser.id]: { delivered: false, read: false },
-        };
+        if (this.messageService) {
+          // Send via messageService to trigger real-time WebSocket broadcast and interactive logging
+          await this.messageService.createMessage(
+            { conversation_id: conversation.id, content: fact },
+            this.botUserId,
+          );
+        } else {
+          // Fallback if messageService is unavailable (e.g. isolated test environments)
+          const status: Record<string, { delivered: boolean; read: boolean }> = {
+            [this.botUserId]: { delivered: true, read: true },
+            [realUser.id]: { delivered: false, read: false },
+          };
 
-        await this.prisma.message.create({
-          data: {
-            content: fact,
-            senderId: this.botUserId,
-            conversationId: conversation.id,
-            status,
-          },
-        });
+          await this.prisma.message.create({
+            data: {
+              content: fact,
+              senderId: this.botUserId,
+              conversationId: conversation.id,
+              status,
+            },
+          });
+        }
+
+        // 3. Clear typing indicator
+        if (this.chatGateway) {
+          this.chatGateway.broadcastTyping(conversation.id, this.botUserId, BOT_USER.name, false);
+        }
       }
     } catch (err) {
       this.logger.error('Bot message tick failed:', err?.message ?? err);
@@ -140,16 +171,6 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         type: 'DM',
         createdBy: this.botUserId,
         participants_ids: [this.botUserId, realUserId],
-      },
-    });
-
-    // Link conversation to both users
-    await this.prisma.user.updateMany({
-      where: { id: { in: [this.botUserId, realUserId] } },
-      data: {
-        conversationIds: {
-          push: conversation.id,
-        },
       },
     });
 

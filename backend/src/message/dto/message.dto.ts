@@ -1,25 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsMongoId, IsString, IsOptional, MinLength, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, MinLength, ValidateIf } from 'class-validator';
 import { FileResponseDto } from '../../file/dto/file.dto';
 
 // ─── Query DTO ────────────────────────────────────────────────────────────────
 
 export class GetMessagesDto {
   @ApiProperty({
-    description: 'MongoDB ObjectId of the conversation to fetch messages from',
+    description: 'Unique identifier of the conversation to fetch messages from',
     example: '64b8f9e2c4a3b12d4e5f0001',
   })
-  @IsMongoId()
+  @IsString()
   conversation_id: string;
 
   @ApiPropertyOptional({
     description:
-      'Cursor for pagination — the ObjectId of the last fetched message. ' +
+      'Cursor for pagination — the identifier of the last fetched message. ' +
       'Omit on the first request; pass the oldest message ID received to load the previous page.',
     example: '64b8f9e2c4a3b12d4e5f1234',
   })
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   from_message_cursor?: string;
 }
 
@@ -27,10 +27,10 @@ export class GetMessagesDto {
 
 export class CreateMessageDto {
   @ApiProperty({
-    description: 'MongoDB ObjectId of the conversation this message belongs to',
+    description: 'Unique identifier of the conversation this message belongs to',
     example: '64b8f9e2c4a3b12d4e5f0001',
   })
-  @IsMongoId()
+  @IsString()
   conversation_id: string;
 
   @ApiPropertyOptional({
@@ -58,7 +58,7 @@ export class CreateMessageDto {
     example: '64b8f9e2c4a3b12d4e5f9001',
   })
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   file_id?: string;
 }
 
@@ -66,7 +66,7 @@ export class CreateMessageDto {
 
 export class MessageResponseDto {
   @ApiProperty({
-    description: 'Unique MongoDB ObjectId of the message',
+    description: 'Unique identifier of the message',
     example: '64b8f9e2c4a3b12d4e5f1234',
   })
   id: string;
@@ -111,13 +111,13 @@ export class MessageResponseDto {
   createdAt: Date;
 
   @ApiProperty({
-    description: 'MongoDB ObjectId of the message sender (from auth header)',
+    description: 'Unique identifier of the message sender (from auth header)',
     example: '64b8f9e2c4a3b12d4e5f6789',
   })
   senderId: string;
 
   @ApiProperty({
-    description: 'MongoDB ObjectId of the conversation this message belongs to',
+    description: 'Unique identifier of the conversation this message belongs to',
     example: '64b8f9e2c4a3b12d4e5f0001',
   })
   conversationId: string;
