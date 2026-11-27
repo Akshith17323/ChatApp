@@ -133,7 +133,6 @@ const styles = StyleSheet.create({
   initialsText: {
     color: '#FFFFFF',
     fontWeight: '600',
-    letterSpacing: -0.2,
   },
   onlineBadge: {
     position: 'absolute',

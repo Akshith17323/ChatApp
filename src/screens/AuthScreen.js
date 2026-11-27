@@ -29,7 +29,7 @@ export default function AuthScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      setLocalError('Please enter both your handle and password.');
+      setLocalError('Enter your username and password.');
       return;
     }
     setLocalError('');
@@ -112,7 +112,7 @@ export default function AuthScreen() {
 
           {/* Quick preset chips */}
           <View style={styles.presetSection}>
-            <Text style={styles.presetHeader}>Quick Server Presets</Text>
+            <Text style={styles.presetHeader}>Server presets</Text>
             <View style={styles.presetRow}>
               <AnimatedPressable
                 style={[
@@ -222,11 +222,11 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.appIcon,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.appIcon,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
     marginBottom: 16,
   },
   title: {
@@ -276,15 +276,13 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.border,
   },
   presetSection: {
-    marginBottom: 18,
+    marginBottom: 16,
     paddingHorizontal: 4,
   },
   presetHeader: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.secondaryText,
-    textTransform: 'uppercase',
-    letterSpacing: 0.2,
     marginBottom: 8,
   },
   presetRow: {
@@ -296,7 +294,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.input,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -331,15 +329,15 @@ const createStyles = (colors) => StyleSheet.create({
   },
   continueButton: {
     backgroundColor: colors.outgoingBubble,
-    height: 50,
+    height: 48,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.outgoingBubble,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   continueButtonDisabled: {
     opacity: 0.5,

@@ -118,7 +118,7 @@ export default function SettingsScreen() {
         </Text>
 
         {/* Server Configuration Section */}
-        <Text style={styles.sectionHeader}>Server configuration</Text>
+        <Text style={styles.sectionHeader}>Server</Text>
         <View style={styles.groupedCard}>
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>URL</Text>
@@ -140,7 +140,7 @@ export default function SettingsScreen() {
             onPress={handleSaveUrl}
             activeOpacity={0.6}
           >
-            <Text style={styles.actionRowText}>Apply Server URL</Text>
+            <Text style={styles.actionRowText}>Apply server URL</Text>
             <Ionicons name="cloud-upload-outline" size={19} color={colors.primary} />
           </AnimatedPressable>
 
@@ -153,7 +153,7 @@ export default function SettingsScreen() {
             activeOpacity={0.6}
             accessibilityState={{ busy: testingPing }}
           >
-            <Text style={styles.actionRowText}>Test Connection</Text>
+            <Text style={styles.actionRowText}>Test connection</Text>
             {testingPing ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -248,7 +248,7 @@ export default function SettingsScreen() {
             onPress={logout}
             activeOpacity={0.6}
           >
-            <Text style={styles.dangerRowText}>Sign Out</Text>
+            <Text style={styles.dangerRowText}>Sign out</Text>
           </AnimatedPressable>
         </View>
 
@@ -256,17 +256,17 @@ export default function SettingsScreen() {
         <Text style={styles.sectionHeader}>About</Text>
         <View style={styles.groupedCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Client Engine</Text>
-            <Text style={styles.infoValue}>Apple Messages Theme</Text>
+            <Text style={styles.infoLabel}>Client</Text>
+            <Text style={styles.infoValue}>Messages theme</Text>
           </View>
           <View style={styles.rowDivider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Backend Framework</Text>
+            <Text style={styles.infoLabel}>Backend</Text>
             <Text style={styles.infoValue}>NestJS + Prisma</Text>
           </View>
           <View style={styles.rowDivider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>API Architecture</Text>
+            <Text style={styles.infoLabel}>API architecture</Text>
             <Text style={styles.infoValue}>REST / Basic Auth</Text>
           </View>
         </View>
@@ -303,10 +303,9 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: colors.secondaryText,
-    letterSpacing: 0.2,
-    marginTop: 22,
-    marginBottom: 6,
-    marginLeft: 14,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 16,
   },
   groupedCard: {
     backgroundColor: colors.surface,
@@ -366,7 +365,7 @@ const createStyles = (colors) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 12,
   },
   actionRowText: {
     fontSize: 16,
@@ -374,7 +373,7 @@ const createStyles = (colors) => StyleSheet.create({
     letterSpacing: -0.3,
   },
   dangerRow: {
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   dangerRowText: {
@@ -415,7 +414,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -469,7 +468,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     gap: 12,
   },
   appearanceLabel: {
@@ -479,9 +478,9 @@ const createStyles = (colors) => StyleSheet.create({
   },
   appearanceNote: {
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 16,
     color: colors.secondaryText,
-    marginHorizontal: 14,
+    marginHorizontal: 16,
     marginTop: 8,
   },
 });

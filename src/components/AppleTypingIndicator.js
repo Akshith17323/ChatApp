@@ -132,6 +132,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 3,
     marginLeft: 4,
-    letterSpacing: -0.1,
   },
 });

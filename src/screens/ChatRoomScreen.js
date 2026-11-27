@@ -486,8 +486,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     }
 
     Alert.alert(
-      'Send Image',
-      'Select a photo source:',
+      'Send image',
+      'Choose photo source:',
       [
         {
           text: 'Camera',
@@ -800,7 +800,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         {isLoading && messages.length === 0 ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading messages...</Text>
+            <Text style={styles.loadingText}>Loading messages</Text>
           </View>
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -859,7 +859,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                       accessibilityRole="button"
                       accessibilityLabel="Try refreshing messages again"
                     >
-                      <Text style={styles.messageActionText}>Try Again</Text>
+                      <Text style={styles.messageActionText}>Try again</Text>
                     </AnimatedPressable>
                   </Animated.View>
                 )}
@@ -1085,7 +1085,6 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.text,
-    letterSpacing: -0.1,
     maxWidth: 160,
   },
   headerChevron: {
@@ -1097,14 +1096,12 @@ const createStyles = (colors) => StyleSheet.create({
   },
   dateStampContainer: {
     alignItems: 'center',
-    marginVertical: 14,
+    marginVertical: 12,
   },
   dateStampText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.secondaryText,
-    textTransform: 'uppercase',
-    letterSpacing: 0.2,
   },
   messagesList: {
     paddingHorizontal: 16,
@@ -1132,8 +1129,8 @@ const createStyles = (colors) => StyleSheet.create({
   bubble: {
     maxWidth: '74%',
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 18,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
   myBubble: {
     backgroundColor: colors.outgoingBubble,
@@ -1160,7 +1157,6 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.secondaryText,
     marginTop: 2,
     marginRight: 4,
-    letterSpacing: -0.1,
   },
   centerContainer: {
     flex: 1,
@@ -1260,7 +1256,7 @@ const createStyles = (colors) => StyleSheet.create({
   messageImage: {
     width: 220,
     height: 220,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
   },
   captionText: {
@@ -1460,6 +1456,5 @@ const createStyles = (colors) => StyleSheet.create({
   typingText: {
     fontSize: 12,
     color: colors.secondaryText,
-    letterSpacing: -0.2,
   },
 });

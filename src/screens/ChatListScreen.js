@@ -239,15 +239,15 @@ export default function ChatListScreen({ navigation }) {
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading Messages...</Text>
+            <Text style={styles.loadingText}>Loading messages</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
             <Ionicons name="alert-circle" size={48} color={colors.danger} />
-            <Text style={styles.errorTitle}>Messages Unavailable</Text>
+            <Text style={styles.errorTitle}>Messages unavailable</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
             <AnimatedPressable style={styles.retryBtn} onPress={() => refetch()}>
-              <Text style={styles.retryBtnText}>Try Again</Text>
+              <Text style={styles.retryBtnText}>Try again</Text>
             </AnimatedPressable>
           </View>
         ) : filteredConversations.length === 0 ? (
@@ -255,15 +255,15 @@ export default function ChatListScreen({ navigation }) {
             <View style={styles.emptyIconCircle}>
               <Ionicons name="chatbubble-ellipses" size={40} color={colors.primary} />
             </View>
-            <Text style={styles.emptyTitle}>{searchQuery.trim() ? 'No Results' : 'No Messages'}</Text>
+            <Text style={styles.emptyTitle}>{searchQuery.trim() ? 'No results' : 'No messages'}</Text>
             <Text style={styles.emptySubtitle}>
-              {searchQuery.trim() ? 'Try a different name.' : 'Start a new conversation to say hello.'}
+              {searchQuery.trim() ? 'Try a different name.' : 'Start a conversation to begin messaging.'}
             </Text>
             <AnimatedPressable
               style={styles.newChatAppleBtn}
               onPress={() => navigation.navigate('NewChat')}
             >
-              <Text style={styles.newChatAppleBtnText}>New Message</Text>
+              <Text style={styles.newChatAppleBtnText}>New message</Text>
             </AnimatedPressable>
           </View>
         ) : (
@@ -338,7 +338,7 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.input,
     borderRadius: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     height: 36,
   },
   searchIcon: {
@@ -362,13 +362,13 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 12,
   },
   chatContentContainer: {
     flex: 1,
     marginLeft: 12,
     position: 'relative',
-    paddingBottom: 11,
+    paddingBottom: 12,
     justifyContent: 'center',
   },
   chatHeaderRow: {
@@ -450,9 +450,9 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 15,
   },
   emptyIconCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
@@ -475,7 +475,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.outgoingBubble,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 22,
+    borderRadius: 20,
   },
   newChatAppleBtnText: {
     color: colors.onPrimary,

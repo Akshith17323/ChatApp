@@ -206,7 +206,7 @@ export default function NewChatScreen({ navigation }) {
                   mode === 'DM' && styles.segmentTextActive,
                 ]}
               >
-                Direct Message
+                Direct message
               </Text>
             </AnimatedPressable>
             <AnimatedPressable
@@ -223,7 +223,7 @@ export default function NewChatScreen({ navigation }) {
                   mode === 'GROUP' && styles.segmentTextActive,
                 ]}
               >
-                Group Chat
+                Group
               </Text>
             </AnimatedPressable>
           </View>
@@ -236,7 +236,7 @@ export default function NewChatScreen({ navigation }) {
               style={styles.groupNameInput}
               value={groupName}
               onChangeText={setGroupName}
-              placeholder="Group Name (e.g. Project Team)"
+              placeholder="Group name"
               placeholderTextColor={colors.placeholder}
               accessibilityLabel="Group name"
             />
@@ -309,7 +309,7 @@ export default function NewChatScreen({ navigation }) {
             <View style={styles.centerContainer}>
               <ActivityIndicator size="small" color={colors.primary} />
               <Text style={styles.loadingText}>
-                {isCreating ? 'Starting conversation…' : 'Loading contacts…'}
+                {isCreating ? 'Starting conversation' : 'Loading contacts'}
               </Text>
             </View>
           ) : error ? (
@@ -317,12 +317,12 @@ export default function NewChatScreen({ navigation }) {
               <Ionicons name="alert-circle-outline" size={38} color={colors.danger} />
               <Text style={styles.errorText}>{error.message}</Text>
               <AnimatedPressable style={styles.retryBtn} onPress={() => refetch()}>
-                <Text style={styles.retryBtnText}>Try Again</Text>
+                <Text style={styles.retryBtnText}>Try again</Text>
               </AnimatedPressable>
             </View>
           ) : filteredUsers.length === 0 ? (
             <View style={styles.centerContainer}>
-              <Text style={styles.emptyText}>No registered contacts found.</Text>
+              <Text style={styles.emptyText}>No contacts found</Text>
             </View>
           ) : (
             <FlatList
@@ -357,7 +357,7 @@ const createStyles = (colors) => StyleSheet.create({
   segmentedControl: {
     flexDirection: 'row',
     backgroundColor: colors.input,
-    borderRadius: 9,
+    borderRadius: 8,
     padding: 2,
     height: 32,
   },
@@ -365,14 +365,14 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 7,
+    borderRadius: 6,
   },
   segmentIndicator: {
     position: 'absolute',
     left: 2,
     top: 2,
     bottom: 2,
-    borderRadius: 7,
+    borderRadius: 6,
     backgroundColor: colors.surface,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
@@ -384,7 +384,6 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.text,
-    letterSpacing: -0.2,
   },
   segmentTextActive: {
     fontWeight: '600',
@@ -404,13 +403,13 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     fontSize: 15,
     color: colors.text,
   },
   createGroupAppleBtn: {
     backgroundColor: colors.outgoingBubble,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
   },
@@ -475,13 +474,13 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     paddingLeft: 16,
     paddingRight: 16,
-    paddingTop: 10,
+    paddingTop: 12,
   },
   userInfoCol: {
     flex: 1,
     marginLeft: 12,
     position: 'relative',
-    paddingBottom: 10,
+    paddingBottom: 12,
   },
   userName: {
     fontSize: 16,
@@ -507,9 +506,9 @@ const createStyles = (colors) => StyleSheet.create({
     paddingBottom: 8,
   },
   checkboxCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: colors.border,
     justifyContent: 'center',
