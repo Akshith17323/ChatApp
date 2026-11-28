@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
@@ -12,9 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { DEFAULT_BASE_URL, SERVER_PRESETS } from '../api/config';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 const ANDROID_EMULATOR_PRESET = { label: 'Emulator (10.0.2.2)', url: 'http://10.0.2.2:3000' };
 const ALL_PRESETS = Platform.OS === 'android'
@@ -32,7 +34,7 @@ export default function AuthScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      setLocalError('Please enter both your handle and password.');
+      setLocalError('Enter your username and password.');
       return;
     }
     setLocalError('');
@@ -55,20 +57,20 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Apple Messages Icon & Header */}
-          <View style={styles.headerContainer}>
+          <Animated.View entering={motion.enter} style={styles.headerContainer}>
             <View style={styles.appIconCircle}>
               <Ionicons name="chatbubble-ellipses" size={48} color={colors.onPrimary} />
             </View>
-            <Text style={styles.title}>iMessage</Text>
+            <Text style={styles.title}>Messages</Text>
             <Text style={styles.subtitle}>
-              Sign in to your account or create a new one automatically.
+              Sign in with your username and password.
             </Text>
-          </View>
+          </Animated.View>
 
           {/* Inset Grouped Card */}
-          <View style={styles.groupedCard}>
+          <Animated.View entering={motion.enter} style={styles.groupedCard}>
             <View style={styles.inputRow}>
-              <Text style={styles.rowLabel}>Handle</Text>
+              <Text style={styles.rowLabel}>Username</Text>
               <TextInput
                 style={styles.rowInput}
                 value={username}
@@ -77,6 +79,7 @@ export default function AuthScreen() {
                 placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Username"
               />
             </View>
 
@@ -91,6 +94,7 @@ export default function AuthScreen() {
                 placeholder="Required"
                 placeholderTextColor={colors.placeholder}
                 secureTextEntry
+                accessibilityLabel="Password"
               />
             </View>
 
@@ -106,17 +110,18 @@ export default function AuthScreen() {
                 placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Server URL"
               />
             </View>
-          </View>
+          </Animated.View>
 
           {/* Quick preset chips */}
           {ALL_PRESETS.length > 0 && (
             <View style={styles.presetSection}>
-              <Text style={styles.presetHeader}>Quick Server Presets</Text>
+              <Text style={styles.presetHeader}>Server presets</Text>
               <View style={styles.presetRow}>
                 {ALL_PRESETS.map((preset) => (
-                  <TouchableOpacity
+                  <AnimatedPressable
                     key={preset.url}
                     style={[
                       styles.presetChip,
@@ -132,35 +137,36 @@ export default function AuthScreen() {
                     >
                       {preset.label}
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 ))}
               </View>
             </View>
           )}
 
           {(localError || error) ? (
-            <View style={styles.errorBox}>
+            <Animated.View entering={motion.enter} exiting={motion.exit} style={styles.errorBox} accessibilityLiveRegion="polite">
               <Ionicons name="information-circle" size={18} color={colors.danger} />
               <Text style={styles.errorBoxText}>{localError || error}</Text>
-            </View>
+            </Animated.View>
           ) : null}
 
           {/* Apple Continue Button */}
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.continueButton, isLoading && styles.continueButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
             activeOpacity={0.8}
+            accessibilityState={{ busy: isLoading }}
           >
             {isLoading ? (
               <ActivityIndicator color={colors.onPrimary} size="small" />
             ) : (
               <Text style={styles.continueButtonText}>Continue</Text>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
 
           <Text style={styles.appleFooterNote}>
-            Your user handle and chats will be synchronized securely with the NestJS backend.
+            Your chats are synchronized with your selected server.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -194,11 +200,11 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.appIcon,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.appIcon,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
     marginBottom: 16,
   },
   title: {
@@ -248,15 +254,13 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.border,
   },
   presetSection: {
-    marginBottom: 18,
+    marginBottom: 16,
     paddingHorizontal: 4,
   },
   presetHeader: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.secondaryText,
-    textTransform: 'uppercase',
-    letterSpacing: 0.2,
     marginBottom: 8,
   },
   presetRow: {
@@ -268,7 +272,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.input,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -303,15 +307,15 @@ const createStyles = (colors) => StyleSheet.create({
   },
   continueButton: {
     backgroundColor: colors.outgoingBubble,
-    height: 50,
+    height: 48,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.outgoingBubble,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   continueButtonDisabled: {
     opacity: 0.5,

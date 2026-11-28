@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,25 +12,51 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
+import { useSocket } from '../context/SocketContext';
 import { useConversations, useUsers } from '../api/hooks';
 import AppleAvatar from '../components/AppleAvatar';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 export default function ChatListScreen({ navigation }) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { user } = useAuth();
+  const { onlineUserIds, socket } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const {
     data: conversations,
     isLoading,
-    isRefetching,
     refetch,
     error,
   } = useConversations();
 
   const { data: users } = useUsers();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Listen for real-time conversation updates over WebSocket
+  useEffect(() => {
+    if (!socket) return;
+    const handleConversationUpdated = () => {
+      refetch();
+    };
+    socket.on('conversation:updated', handleConversationUpdated);
+    return () => {
+      socket.off('conversation:updated', handleConversationUpdated);
+    };
+  }, [socket, refetch]);
 
   // Create an id -> name lookup map
   const userMap = useMemo(() => {
@@ -44,17 +70,17 @@ export default function ChatListScreen({ navigation }) {
   }, [users]);
 
   const getConversationTitle = useCallback((item) => {
-    if (item.name) return item.name;
-
     if (item.type === 'DM') {
       const otherId = item.participants_ids?.find((id) => id !== user?.id);
       if (otherId && userMap.has(otherId)) {
         return userMap.get(otherId);
       }
-      return otherId ? `User (${otherId.slice(-4)})` : 'Direct Message';
+      if (otherId) return `User (${otherId.slice(-4)})`;
     }
 
-    return 'Group Conversation';
+    if (item.name) return item.name;
+
+    return item.type === 'DM' ? 'Direct Message' : 'Group Conversation';
   }, [userMap, user?.id]);
 
   const formatAppleDate = (dateString) => {
@@ -103,11 +129,15 @@ export default function ChatListScreen({ navigation }) {
     const isDm = item.type === 'DM';
     const dateStr = formatAppleDate(item.createdAt);
     const memberCount = item.participants_ids?.length || 0;
+    const otherId = isDm ? item.participants_ids?.find((id) => id !== user?.id) : null;
+    const isOnline = isDm && otherId ? onlineUserIds.has(otherId) : false;
 
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={styles.chatRow}
         activeOpacity={0.7}
+        pressScale={0.99}
+        accessibilityLabel={`Open conversation with ${title}`}
         onPress={() =>
           navigation.navigate('ChatRoom', {
             conversationId: item.id,
@@ -123,6 +153,7 @@ export default function ChatListScreen({ navigation }) {
           size={48}
           isGroup={!isDm}
           memberCount={memberCount}
+          isOnline={isOnline}
         />
 
         {/* Content & Apple styled right edge */}
@@ -143,30 +174,32 @@ export default function ChatListScreen({ navigation }) {
           </View>
 
           <Text style={styles.chatSubtitle} numberOfLines={2}>
-            {isDm ? 'iMessage' : `${memberCount} people`}
+            {isDm ? (isOnline ? 'Online' : 'Offline') : `${memberCount} members`}
           </Text>
 
           {/* Inset Hairline Separator */}
           <View style={styles.separator} />
         </View>
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <Animated.View entering={motion.fade} style={styles.container}>
         {/* Top iOS Navigation Bar */}
         <View style={styles.topNav}>
           <TouchableOpacity style={styles.editBtn}>
             <Text style={styles.navActionText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.composeBtn}
             onPress={() => navigation.navigate('NewChat')}
+            accessibilityLabel="New message"
+            hitSlop={8}
           >
             <Ionicons name="create-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {/* Large iOS Header Title */}
@@ -184,17 +217,18 @@ export default function ChatListScreen({ navigation }) {
               onChangeText={setSearchQuery}
               placeholder="Search"
               placeholderTextColor={colors.placeholder}
-              clearButtonMode="while-editing"
               returnKeyType="search"
+              accessibilityLabel="Search conversations"
             />
             {searchQuery.length > 0 ? (
-              <TouchableOpacity
+              <AnimatedPressable
                 onPress={() => setSearchQuery('')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
+                accessibilityLabel="Clear search"
               >
                 <Ionicons name="close-circle" size={18} color={colors.secondaryText} />
-              </TouchableOpacity>
+              </AnimatedPressable>
             ) : (
               <Ionicons name="mic" size={17} color={colors.secondaryText} style={styles.micIcon} />
             )}
@@ -205,32 +239,32 @@ export default function ChatListScreen({ navigation }) {
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading Messages...</Text>
+            <Text style={styles.loadingText}>Loading messages</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
             <Ionicons name="alert-circle" size={48} color={colors.danger} />
-            <Text style={styles.errorTitle}>Messages Unavailable</Text>
+            <Text style={styles.errorTitle}>Messages unavailable</Text>
             <Text style={styles.errorMessage}>{error.message}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-              <Text style={styles.retryBtnText}>Try Again</Text>
-            </TouchableOpacity>
+            <AnimatedPressable style={styles.retryBtn} onPress={() => refetch()}>
+              <Text style={styles.retryBtnText}>Try again</Text>
+            </AnimatedPressable>
           </View>
         ) : filteredConversations.length === 0 ? (
           <View style={styles.centerContainer}>
             <View style={styles.emptyIconCircle}>
               <Ionicons name="chatbubble-ellipses" size={40} color={colors.primary} />
             </View>
-            <Text style={styles.emptyTitle}>No Messages</Text>
+            <Text style={styles.emptyTitle}>{searchQuery.trim() ? 'No results' : 'No messages'}</Text>
             <Text style={styles.emptySubtitle}>
-              Send a new iMessage to get the conversation started.
+              {searchQuery.trim() ? 'Try a different name.' : 'Start a conversation to begin messaging.'}
             </Text>
-            <TouchableOpacity
+            <AnimatedPressable
               style={styles.newChatAppleBtn}
               onPress={() => navigation.navigate('NewChat')}
             >
-              <Text style={styles.newChatAppleBtnText}>New Message</Text>
-            </TouchableOpacity>
+              <Text style={styles.newChatAppleBtnText}>New message</Text>
+            </AnimatedPressable>
           </View>
         ) : (
           <FlatList
@@ -239,17 +273,18 @@ export default function ChatListScreen({ navigation }) {
             renderItem={renderConversationItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
                 tintColor={colors.primary}
                 colors={[colors.primary]}
               />
             }
           />
         )}
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -303,7 +338,7 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.input,
     borderRadius: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     height: 36,
   },
   searchIcon: {
@@ -327,13 +362,13 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 12,
   },
   chatContentContainer: {
     flex: 1,
     marginLeft: 12,
     position: 'relative',
-    paddingBottom: 11,
+    paddingBottom: 12,
     justifyContent: 'center',
   },
   chatHeaderRow: {
@@ -415,9 +450,9 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 15,
   },
   emptyIconCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
@@ -440,7 +475,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.outgoingBubble,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 22,
+    borderRadius: 20,
   },
   newChatAppleBtnText: {
     color: colors.onPrimary,

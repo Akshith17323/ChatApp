@@ -6,7 +6,11 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
+import { SocketProvider } from './src/context/SocketContext';
 import { MessageOutboxProvider } from './src/context/MessageOutboxContext';
+import { NotificationProvider, useNotification } from './src/context/NotificationContext';
+import InAppNotificationBanner from './src/components/InAppNotificationBanner';
+import { navigationRef, navigateToChatRoom } from './src/navigation/navigationRef';
 import TabNavigator from './src/navigation/Tabnavigator';
 
 const queryClient = new QueryClient({
@@ -19,8 +23,20 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark, reduceMotion } = useAppTheme();
   const { user, baseUrl } = useAuth();
+  const { inAppNotification, dismissInAppNotification } = useNotification();
+
+  const handleBannerPress = () => {
+    if (inAppNotification?.conversationId) {
+      navigateToChatRoom(
+        inAppNotification.conversationId,
+        inAppNotification.conversationTitle
+      );
+      dismissInAppNotification();
+    }
+  };
+
   const navigationTheme = useMemo(() => {
     const baseTheme = isDark ? DarkTheme : DefaultTheme;
     return {
@@ -43,10 +59,16 @@ function AppContent() {
 
   return (
     <MessageOutboxProvider key={`${baseUrl}:${user?.id || 'signed-out'}`}>
-      <NavigationContainer theme={navigationTheme}>
+      <InAppNotificationBanner
+        visible={Boolean(inAppNotification)}
+        notification={inAppNotification}
+        onPress={handleBannerPress}
+        onDismiss={dismissInAppNotification}
+      />
+      <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <TabNavigator />
       </NavigationContainer>
-      <StatusBar style={isDark ? 'light' : 'dark'} animated />
+      <StatusBar style={isDark ? 'light' : 'dark'} animated={!reduceMotion} />
     </MessageOutboxProvider>
   );
 }
@@ -57,7 +79,11 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <AppContent />
+            <SocketProvider>
+              <NotificationProvider>
+                <AppContent />
+              </NotificationProvider>
+            </SocketProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>

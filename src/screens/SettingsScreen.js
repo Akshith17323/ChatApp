@@ -3,20 +3,21 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { userApi } from '../api/userApi';
 import { SERVER_PRESETS } from '../api/config';
 import AppleAvatar from '../components/AppleAvatar';
+import AnimatedPressable from '../components/AnimatedPressable';
+import { motion } from '../theme/motion';
 
 const ANDROID_EMULATOR_PRESET = { label: 'Emulator (10.0.2.2)', url: 'http://10.0.2.2:3000' };
 const ALL_PRESETS = Platform.OS === 'android'
@@ -64,10 +65,12 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
+      <Animated.ScrollView
+        entering={motion.fade}
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.largeTitle}>Settings</Text>
 
@@ -92,25 +95,28 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionHeader}>APPEARANCE</Text>
+        <Text style={styles.sectionHeader}>Appearance</Text>
         <View style={styles.groupedCard} accessibilityRole="radiogroup">
           {APPEARANCE_OPTIONS.map((option, index) => (
             <React.Fragment key={option.value}>
               {index > 0 && <View style={styles.rowDivider} />}
-              <TouchableOpacity
+              <AnimatedPressable
                 style={styles.appearanceRow}
                 onPress={() => setThemeMode(option.value)}
                 accessibilityRole="radio"
                 accessibilityLabel={`${option.label} appearance`}
                 accessibilityState={{ checked: themeMode === option.value }}
                 activeOpacity={0.6}
+                pressScale={0.99}
               >
                 <Ionicons name={option.icon} size={21} color={colors.primary} />
                 <Text style={styles.appearanceLabel}>{option.label}</Text>
                 {themeMode === option.value && (
-                  <Ionicons name="checkmark" size={21} color={colors.primary} />
+                  <Animated.View entering={motion.pop}>
+                    <Ionicons name="checkmark" size={21} color={colors.primary} />
+                  </Animated.View>
                 )}
-              </TouchableOpacity>
+              </AnimatedPressable>
             </React.Fragment>
           ))}
         </View>
@@ -119,7 +125,7 @@ export default function SettingsScreen() {
         </Text>
 
         {/* Server Configuration Section */}
-        <Text style={styles.sectionHeader}>SERVER CONFIGURATION</Text>
+        <Text style={styles.sectionHeader}>Server</Text>
         <View style={styles.groupedCard}>
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>URL</Text>
@@ -136,37 +142,38 @@ export default function SettingsScreen() {
 
           <View style={styles.rowDivider} />
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.actionRow}
             onPress={handleSaveUrl}
             activeOpacity={0.6}
           >
-            <Text style={styles.actionRowText}>Apply Server URL</Text>
+            <Text style={styles.actionRowText}>Apply server URL</Text>
             <Ionicons name="cloud-upload-outline" size={19} color={colors.primary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
 
           <View style={styles.rowDivider} />
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.actionRow}
             onPress={handleTestConnection}
             disabled={testingPing}
             activeOpacity={0.6}
+            accessibilityState={{ busy: testingPing }}
           >
-            <Text style={styles.actionRowText}>Test Connection</Text>
+            <Text style={styles.actionRowText}>Test connection</Text>
             {testingPing ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <Ionicons name="pulse-outline" size={19} color={colors.primary} />
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {/* Quick presets */}
         {ALL_PRESETS.length > 0 && (
           <View style={styles.presetsRow}>
             {ALL_PRESETS.map((preset) => (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={preset.url}
                 style={[
                   styles.presetChip,
@@ -182,13 +189,16 @@ export default function SettingsScreen() {
                 >
                   {preset.label}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </View>
         )}
 
         {pingResult && (
-          <View
+          <Animated.View
+            entering={motion.enter}
+            exiting={motion.exit}
+            accessibilityLiveRegion="polite"
             style={[
               styles.statusBanner,
               pingResult.success ? styles.successBanner : styles.errorBanner,
@@ -207,36 +217,36 @@ export default function SettingsScreen() {
             >
               {pingResult.message}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         {/* Account Section */}
-        <Text style={styles.sectionHeader}>ACCOUNT</Text>
+        <Text style={styles.sectionHeader}>Account</Text>
         <View style={styles.groupedCard}>
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.dangerRow}
             onPress={logout}
             activeOpacity={0.6}
           >
-            <Text style={styles.dangerRowText}>Sign Out</Text>
-          </TouchableOpacity>
+            <Text style={styles.dangerRowText}>Sign out</Text>
+          </AnimatedPressable>
         </View>
 
         {/* About Section */}
-        <Text style={styles.sectionHeader}>ABOUT</Text>
+        <Text style={styles.sectionHeader}>About</Text>
         <View style={styles.groupedCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Client Engine</Text>
-            <Text style={styles.infoValue}>Apple Messages Theme</Text>
+            <Text style={styles.infoLabel}>Client</Text>
+            <Text style={styles.infoValue}>Messages theme</Text>
           </View>
           <View style={styles.rowDivider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Backend Framework</Text>
+            <Text style={styles.infoLabel}>Backend</Text>
             <Text style={styles.infoValue}>NestJS + Prisma</Text>
           </View>
           <View style={styles.rowDivider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>API Architecture</Text>
+            <Text style={styles.infoLabel}>API architecture</Text>
             <Text style={styles.infoValue}>REST / Basic Auth</Text>
           </View>
         </View>
@@ -244,7 +254,7 @@ export default function SettingsScreen() {
         <Text style={styles.footerNote}>
           Messages are delivered through the university 5th semester backend project.
         </Text>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -273,10 +283,9 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: colors.secondaryText,
-    letterSpacing: 0.2,
-    marginTop: 22,
-    marginBottom: 6,
-    marginLeft: 14,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 16,
   },
   groupedCard: {
     backgroundColor: colors.surface,
@@ -336,7 +345,7 @@ const createStyles = (colors) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 12,
   },
   actionRowText: {
     fontSize: 16,
@@ -344,7 +353,7 @@ const createStyles = (colors) => StyleSheet.create({
     letterSpacing: -0.3,
   },
   dangerRow: {
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   dangerRowText: {
@@ -385,7 +394,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -439,7 +448,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     gap: 12,
   },
   appearanceLabel: {
@@ -449,9 +458,9 @@ const createStyles = (colors) => StyleSheet.create({
   },
   appearanceNote: {
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 16,
     color: colors.secondaryText,
-    marginHorizontal: 14,
+    marginHorizontal: 16,
     marginTop: 8,
   },
 });

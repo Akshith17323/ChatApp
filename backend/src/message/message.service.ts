@@ -1,8 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  Optional,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMessageDto } from './dto/message.dto';
 import { colorizeName } from '../common/color.util';
 import { FILE_META_SELECT, toFileResponse } from '../file/file.service';
+import { ChatGateway } from './chat.gateway';
+import { FcmService } from './fcm.service';
+import { FACTS } from '../bot/facts.data';
 
 const PAGE_SIZE = 20;
 
@@ -10,7 +22,14 @@ const PAGE_SIZE = 20;
 export class MessageService {
   private readonly logger = new Logger('Chat');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway?: ChatGateway,
+    @Optional()
+    private readonly fcmService?: FcmService,
+  ) {}
 
   /**
    * Fetch messages for a conversation using cursor-based pagination.
@@ -94,10 +113,10 @@ export class MessageService {
         : `data:image/jpeg;base64,${dto.imageInfo}`;
     }
 
-    // Fetch participant names explicitly — Prisma MongoDB relation joins are unreliable
+    // Fetch participant names explicitly for message rendering
     const participants = await this.prisma.user.findMany({
       where: { id: { in: conversation.participants_ids } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, pushToken: true },
     });
 
     const defaultStatus: Record<string, { delivered: boolean; read: boolean }> = {};
@@ -153,7 +172,114 @@ export class MessageService {
       `\x1b[36m[MSG]\x1b[0m \x1b[1m${convLabel}\x1b[0m │ ${coloredSender} \x1b[33m➔\x1b[0m ${coloredReceivers} │ ${attachmentLabel}${imgLabel}"${contentLabel}"`,
     );
 
+    (response as any).senderName = senderName;
+    (response as any).conversationName = isDm ? null : (conversation.name ?? null);
+
+    // Auto-read receipt and interactive response simulation for FactBot recipient
+    const botUser = participants.find((p) => p.name === 'FactBot');
+    if (botUser && senderId !== botUser.id) {
+      setTimeout(async () => {
+        try {
+          // 1. Mark message as delivered and read (blue double checkmarks)
+          const currentMsg = await this.prisma.message.findUnique({
+            where: { id: message.id },
+            select: { status: true },
+          });
+          const status = (currentMsg?.status as Record<string, { delivered: boolean; read: boolean }>) || {};
+          status[botUser.id] = { delivered: true, read: true };
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: { status },
+          });
+          this.chatGateway?.broadcastMessageRead(dto.conversation_id, message.id, botUser.id);
+
+          // 2. Start visible typing indicator
+          setTimeout(async () => {
+            this.chatGateway?.broadcastTyping(dto.conversation_id, botUser.id, 'FactBot', true);
+
+            // 3. Keep typing indicator active for 1.4s, then deliver interactive fact
+            setTimeout(async () => {
+              try {
+                this.chatGateway?.broadcastTyping(dto.conversation_id, botUser.id, 'FactBot', false);
+                const randomFact = FACTS[Math.floor(Math.random() * FACTS.length)];
+                await this.createMessage(
+                  { conversation_id: dto.conversation_id, content: randomFact },
+                  botUser.id,
+                );
+              } catch (botErr: any) {
+                this.logger.debug(`Bot auto-reply error: ${botErr?.message}`);
+              }
+            }, 1400);
+          }, 350);
+        } catch (err: any) {
+          this.logger.debug(`Bot auto-read error: ${err?.message}`);
+        }
+      }, 500);
+    }
+
+    // Broadcast in real-time to active WebSocket rooms
+    try {
+      this.chatGateway?.broadcastNewMessage(
+        dto.conversation_id,
+        response,
+        conversation.participants_ids,
+        {
+          senderName,
+          conversationName: isDm ? senderName : (conversation.name || 'Group Chat'),
+        },
+      );
+    } catch (err: any) {
+      this.logger.warn(`WS broadcast error: ${err?.message}`);
+    }
+
+    // Dispatch FCM push notifications to offline / background participants
+    if (this.fcmService) {
+      const convTitle = isDm ? senderName : (conversation.name || 'Group Chat');
+      const bodyPreview = (response as any).content || (file ? `Sent file: ${file.name}` : 'Sent a photo');
+
+      for (const recipient of participants) {
+        if (recipient.id !== senderId && (recipient as any).pushToken) {
+          void this.fcmService.sendPushNotification({
+            token: (recipient as any).pushToken,
+            title: senderName,
+            body: bodyPreview,
+            data: {
+              conversationId: dto.conversation_id,
+              conversationTitle: convTitle,
+              messageId: message.id,
+            },
+          });
+        }
+      }
+    }
+
     return response;
+  }
+
+  /**
+   * Delete a message. Only the sender can delete their own message.
+   */
+  async deleteMessage(messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, conversationId: true },
+    });
+    if (!message) {
+      throw new NotFoundException(`Message '${messageId}' not found`);
+    }
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only delete your own messages');
+    }
+
+    await this.prisma.message.delete({ where: { id: messageId } });
+
+    try {
+      this.chatGateway?.broadcastDeletedMessage(message.conversationId, messageId);
+    } catch (err: any) {
+      this.logger.warn(`WS delete broadcast error: ${err?.message}`);
+    }
+
+    return { success: true, id: messageId };
   }
 
   private async requireParticipant(conversationId: string, userId: string) {

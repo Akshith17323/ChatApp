@@ -88,7 +88,7 @@ export class AuthGuard implements CanActivate {
       const passwordHash = await hashPassword(password);
       try {
         return await this.prisma.user.create({
-          data: { name: username, passwordHash, conversationIds: [] },
+          data: { name: username, passwordHash },
         });
       } catch (error) {
         if (error.code !== 'P2002') throw error;
@@ -109,8 +109,9 @@ export class AuthGuard implements CanActivate {
     const passwordHash = await hashPassword(password);
     const migrated = await this.prisma.user.updateMany({
       where: {
-        id: user.id, phone: user.phone,
-        OR: [{ passwordHash: null }, { passwordHash: { isSet: false } }],
+        id: user.id,
+        phone: user.phone,
+        passwordHash: null,
       },
       data: { passwordHash, phone: null },
     });

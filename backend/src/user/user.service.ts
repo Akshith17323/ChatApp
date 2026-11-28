@@ -40,4 +40,15 @@ export class UserService {
       orderBy: { name: 'asc' },
     });
   }
+
+  /**
+   * Updates or registers the user's FCM device push token.
+   */
+  async updatePushToken(userId: string, pushToken: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { pushToken },
+      select: { id: true, name: true, pushToken: true },
+    });
+  }
 }

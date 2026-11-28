@@ -110,16 +110,6 @@ export class ConversationService {
       },
     });
 
-    // Update conversationIds for all participants
-    await this.prisma.user.updateMany({
-      where: { id: { in: allParticipantIds } },
-      data: {
-        conversationIds: {
-          push: conversation.id,
-        },
-      },
-    });
-
     return conversation;
   }
 }

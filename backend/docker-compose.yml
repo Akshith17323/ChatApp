@@ -1,46 +1,22 @@
 services:
-  # ─── MongoDB 7.0 (single-node replica set for Prisma, internal keyfile) ───────
-  mongo:
-    image: mongo:7.0
-    container_name: chatapp_mongo
+  # ─── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chatapp_postgres
     restart: unless-stopped
     ports:
-      - '127.0.0.1:27017:27017'
+      - '127.0.0.1:5432:5432'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Set a random MONGO_PASSWORD in backend/.env}
-      MONGO_INITDB_DATABASE: chatapp
-      MONGO_SILENT_LOGS: ${MONGO_SILENT_LOGS:-true}
-    entrypoint:
-      - bash
-      - -c
-      - |
-        if [ "$${MONGO_SILENT_LOGS:-true}" = "true" ]; then
-          exec >/dev/null 2>&1
-        fi
-        if [ ! -f /data/key/keyfile ]; then
-          mkdir -p /data/key
-          openssl rand -base64 756 > /data/key/keyfile
-          chmod 400 /data/key/keyfile
-          chown -R mongodb:mongodb /data/key
-        fi
-        exec docker-entrypoint.sh mongod --replSet rs0 --keyFile /data/key/keyfile --bind_ip_all
+      POSTGRES_USER: ${POSTGRES_USER:-chatadmin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-chatapp}
     volumes:
-      - mongo_data:/data/db
-      - mongo_key:/data/key
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          'CMD', 'mongosh', '--quiet',
-          '--username', '${MONGO_USERNAME}',
-          '--password', '${MONGO_PASSWORD}',
-          '--authenticationDatabase', 'admin',
-          '--eval', "try { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }) } catch(e) { if (e.code !== 23) throw e } db.adminCommand({ ping: 1 })"
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-chatadmin} -d ${POSTGRES_DB:-chatapp}']
       interval: 5s
-      timeout: 10s
-      retries: 10
-      start_period: 15s
+      timeout: 5s
+      retries: 5
 
   # ─── NestJS API ──────────────────────────────────────────────────────────────
   api:
@@ -54,16 +30,15 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/chatapp?authSource=admin&replicaSet=rs0&directConnection=true'
+      DATABASE_URL: 'postgresql://${POSTGRES_USER:-chatadmin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-chatapp}?schema=public'
       PORT: '3000'
       BOT_MODE: '${BOT_MODE:-false}'
     volumes:
       - .:/app
       - /app/node_modules
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
 
 volumes:
-  mongo_data:
-  mongo_key:
+  postgres_data:

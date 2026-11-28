@@ -50,7 +50,7 @@ export class FileController {
       'Returns the file metadata and its contents as base64. ' +
       'Allowed for the uploader and for participants of conversations where the file was sent.',
   })
-  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
+  @ApiParam({ name: 'id', description: 'Unique identifier of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
   @ApiResponse({ status: 200, description: 'File with base64 data', type: FileWithDataResponseDto })
   @ApiResponse({ status: 401, description: 'Missing or invalid Authorization header' })
   @ApiResponse({ status: 403, description: 'No access to this file' })
@@ -67,7 +67,7 @@ export class FileController {
       'Returns the original bytes with their Content-Type. Images are shown inline, other files are downloaded. ' +
       'Same access rules as GET /file/{id}.',
   })
-  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
+  @ApiParam({ name: 'id', description: 'Unique identifier of the file', example: '64b8f9e2c4a3b12d4e5f9001' })
   @ApiProduces('application/octet-stream', 'image/*')
   @ApiResponse({ status: 200, description: 'The file contents' })
   @ApiResponse({ status: 401, description: 'Missing or invalid Authorization header' })

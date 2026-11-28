@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Query, Body, Param } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiQuery,
   ApiBody,
+  ApiParam,
   ApiSecurity,
 } from '@nestjs/swagger';
 import { MessageService } from './message.service';
@@ -32,13 +33,13 @@ export class MessageController {
   })
   @ApiQuery({
     name: 'conversation_id',
-    description: 'MongoDB ObjectId of the target conversation',
+    description: 'Unique identifier of the target conversation',
     example: '64b8f9e2c4a3b12d4e5f0001',
   })
   @ApiQuery({
     name: 'from_message_cursor',
     required: false,
-    description: 'ObjectId of the last fetched message. Omit for the first page.',
+    description: 'Identifier of the last fetched message. Omit for the first page.',
     example: '64b8f9e2c4a3b12d4e5f1234',
   })
   @ApiResponse({
@@ -80,5 +81,19 @@ export class MessageController {
   @ApiResponse({ status: 400, description: 'Validation error or missing both content and imageInfo' })
   createMessage(@Body() body: CreateMessageDto, @CurrentUser() user: any) {
     return this.messageService.createMessage(body, user.id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete a message',
+    description: 'Deletes a message by ID. Only the original sender can delete their message.',
+  })
+  @ApiParam({ name: 'id', description: 'Unique identifier of the message to delete' })
+  @ApiResponse({ status: 200, description: 'Message deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid Authorization header' })
+  @ApiResponse({ status: 403, description: 'Caller is not the sender of the message' })
+  @ApiResponse({ status: 404, description: 'Message not found' })
+  deleteMessage(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.messageService.deleteMessage(id, user.id);
   }
 }

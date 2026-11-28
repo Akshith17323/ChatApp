@@ -8,7 +8,7 @@ import { BadRequestException } from '@nestjs/common';
  * pickers and FileReader.readAsDataURL() return.
  */
 
-/** Largest upload accepted, in MB of decoded bytes (MongoDB documents are capped at 16 MB). */
+/** Largest upload accepted, in MB of decoded bytes. */
 export const MAX_UPLOAD_MB = Math.min(Number(process.env.MAX_UPLOAD_MB) || 10, 15);
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 

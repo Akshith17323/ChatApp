@@ -8,10 +8,16 @@ import { JSON_BODY_LIMIT } from './common/base64.util';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY);
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : process.env.NODE_ENV === 'production'
+    ? []
+    : true;
+
   app.enableCors({
-    origin: (process.env.CORS_ORIGINS ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8081,http://127.0.0.1:8081'))
-      .split(',').map((origin) => origin.trim()).filter(Boolean),
-    methods: ['GET', 'POST'],
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type'],
   });
 
@@ -58,8 +64,8 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`Application running on http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`Application running on http://localhost:${port} and LAN http://0.0.0.0:${port}`);
   console.log(`Swagger UI available at http://localhost:${port}/docs`);
 }
 bootstrap();

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useRef } from 'react';
 import { setApiConfig, DEFAULT_BASE_URL } from '../api/config';
 import { userApi } from '../api/userApi';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,18 +24,27 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const authAttemptRef = useRef(0);
 
   const setServerUrl = (url) => {
     const cleanUrl = url.replace(/\/+$/, '');
-    setBaseUrlState(cleanUrl);
-    setApiConfig({ baseUrl: cleanUrl });
     if (cleanUrl !== baseUrl) {
-      // Query keys are session-local too; do not show another server's cached chats.
+      // Invalidate in-flight auth attempts, clear session state and cache
+      authAttemptRef.current += 1;
+      setUsername('');
+      setPassword('');
+      setUser(null);
+      setError(null);
+      setApiConfig({ baseUrl: cleanUrl, username: '', password: '' });
       queryClient.clear();
+    } else {
+      setApiConfig({ baseUrl: cleanUrl });
     }
+    setBaseUrlState(cleanUrl);
   };
 
   const login = async (uName, pWord, customUrl) => {
+    const attemptId = ++authAttemptRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -49,6 +58,9 @@ export function AuthProvider({ children }) {
     try {
       // Validate credentials by fetching user profile
       const profile = await userApi.getUserProfile();
+      // Drop response if a new login, logout, or server change occurred
+      if (attemptId !== authAttemptRef.current) return null;
+
       setUsername(uName.trim());
       setPassword(pWord.trim());
       setBaseUrlState(activeUrl);
@@ -56,16 +68,21 @@ export function AuthProvider({ children }) {
       queryClient.clear();
       return profile;
     } catch (err) {
-      setError(err.message || 'Login failed');
-      // Reset config
-      setApiConfig({ username: '', password: '' });
+      if (attemptId === authAttemptRef.current) {
+        setError(err.message || 'Login failed');
+        // Reset config
+        setApiConfig({ username: '', password: '' });
+      }
       throw err;
     } finally {
-      setIsLoading(false);
+      if (attemptId === authAttemptRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
   const logout = () => {
+    authAttemptRef.current += 1;
     setUsername('');
     setPassword('');
     setUser(null);
