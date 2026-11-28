@@ -1,6 +1,16 @@
 import type { ApiConfig } from './types';
 
-export const DEFAULT_BASE_URL = 'http://10.7.1.51:3000';
+/**
+ * Server presets surfaced on the Auth and Settings screens.
+ * Keep IPs out of source — users enter their own server address.
+ * `localhost` is the only built-in preset; the Android-emulator alias
+ * is added at runtime by the UI when Platform.OS === 'android'.
+ */
+export const SERVER_PRESETS: { label: string; url: string }[] = [
+  { label: 'localhost:3000', url: 'http://localhost:3000' },
+];
+
+export const DEFAULT_BASE_URL = SERVER_PRESETS[0].url;
 
 let currentConfig: ApiConfig = {
   baseUrl: DEFAULT_BASE_URL,
@@ -22,14 +32,24 @@ export function getApiConfig(): ApiConfig {
 }
 
 /**
- * Returns the exact Authorization header expected by the NestJS AuthGuard:
- * `Basic <username>:<password>` (plain text, NOT base64).
+ * Returns a standard RFC 7617 Basic Authorization header:
+ *   Authorization: Basic <base64(UTF-8 username:password)>
+ *
+ * The backend's `readBasicCredentials` already decodes base64.
  */
 export function getAuthHeader(): string | null {
   if (!currentConfig.username || !currentConfig.password) {
     return null;
   }
-  return `Basic ${currentConfig.username}:${currentConfig.password}`;
+  const credentials = `${currentConfig.username}:${currentConfig.password}`;
+  // btoa works on ASCII — but usernames/passwords may contain Unicode.
+  // Encode as UTF-8 first, then base64.
+  const encoded = btoa(
+    String.fromCodePoint(
+      ...new TextEncoder().encode(credentials),
+    ),
+  );
+  return `Basic ${encoded}`;
 }
 
 export interface RequestOptions extends RequestInit {

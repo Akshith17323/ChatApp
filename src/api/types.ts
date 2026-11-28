@@ -1,6 +1,6 @@
 /**
  * TypeScript definitions matching the Chat App NestJS backend API.
- * Docs: http://10.7.1.51:3000/docs#/
+ * Docs: <server>/docs#/
  */
 
 export interface User {
