@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,9 +14,15 @@ import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
 import { userApi } from '../api/userApi';
+import { SERVER_PRESETS } from '../api/config';
 import AppleAvatar from '../components/AppleAvatar';
 import AnimatedPressable from '../components/AnimatedPressable';
 import { motion } from '../theme/motion';
+
+const ANDROID_EMULATOR_PRESET = { label: 'Emulator (10.0.2.2)', url: 'http://10.0.2.2:3000' };
+const ALL_PRESETS = Platform.OS === 'android'
+  ? [...SERVER_PRESETS, ANDROID_EMULATOR_PRESET]
+  : SERVER_PRESETS;
 
 const APPEARANCE_OPTIONS = [
   { value: 'system', label: 'System', icon: 'phone-portrait-outline' },
@@ -126,7 +133,7 @@ export default function SettingsScreen() {
               style={styles.fieldInput}
               value={editingUrl}
               onChangeText={setEditingUrl}
-              placeholder="http://10.7.1.51:3000"
+              placeholder="http://your-server:3000"
               placeholderTextColor={colors.placeholder}
               autoCapitalize="none"
               autoCorrect={false}
@@ -163,56 +170,29 @@ export default function SettingsScreen() {
         </View>
 
         {/* Quick presets */}
-        <View style={styles.presetsRow}>
-          <AnimatedPressable
-            style={[
-              styles.presetChip,
-              editingUrl === 'http://10.7.1.51:3000' && styles.presetChipActive,
-            ]}
-            onPress={() => setEditingUrl('http://10.7.1.51:3000')}
-          >
-            <Text
-              style={[
-                styles.presetChipText,
-                editingUrl === 'http://10.7.1.51:3000' && styles.presetChipTextActive,
-              ]}
-            >
-              10.7.1.51:3000
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[
-              styles.presetChip,
-              editingUrl === 'http://localhost:3000' && styles.presetChipActive,
-            ]}
-            onPress={() => setEditingUrl('http://localhost:3000')}
-          >
-            <Text
-              style={[
-                styles.presetChipText,
-                editingUrl === 'http://localhost:3000' && styles.presetChipTextActive,
-              ]}
-            >
-              localhost:3000
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[
-              styles.presetChip,
-              editingUrl === 'http://10.0.2.2:3000' && styles.presetChipActive,
-            ]}
-            onPress={() => setEditingUrl('http://10.0.2.2:3000')}
-          >
-            <Text
-              style={[
-                styles.presetChipText,
-                editingUrl === 'http://10.0.2.2:3000' && styles.presetChipTextActive,
-              ]}
-            >
-              Emulator (10.0.2.2)
-            </Text>
-          </AnimatedPressable>
-        </View>
+        {ALL_PRESETS.length > 0 && (
+          <View style={styles.presetsRow}>
+            {ALL_PRESETS.map((preset) => (
+              <AnimatedPressable
+                key={preset.url}
+                style={[
+                  styles.presetChip,
+                  editingUrl === preset.url && styles.presetChipActive,
+                ]}
+                onPress={() => setEditingUrl(preset.url)}
+              >
+                <Text
+                  style={[
+                    styles.presetChipText,
+                    editingUrl === preset.url && styles.presetChipTextActive,
+                  ]}
+                >
+                  {preset.label}
+                </Text>
+              </AnimatedPressable>
+            ))}
+          </View>
+        )}
 
         {pingResult && (
           <Animated.View

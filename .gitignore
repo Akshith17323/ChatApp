@@ -47,3 +47,6 @@ FEATURES.md
 REFACTORING_PLAN.md
 .venv
 *.apk
+
+# Internal issue tracker
+ISSUES.md

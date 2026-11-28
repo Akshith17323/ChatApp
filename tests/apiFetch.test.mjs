@@ -20,7 +20,9 @@ test('keeps message endpoints, JSON payloads, and the backend Basic auth format 
   assert.equal(fetch.mock.callCount(), 1);
   const [url, options] = fetch.mock.calls[0].arguments;
   assert.equal(url, 'https://chat.test/message');
-  assert.equal(options.headers.Authorization, 'Basic tester:secret');
+  // RFC 7617: credentials are base64-encoded as UTF-8 "username:password"
+  const expectedAuth = 'Basic ' + btoa('tester:secret');
+  assert.equal(options.headers.Authorization, expectedAuth);
   assert.equal(options.headers['Content-Type'], 'application/json');
   assert.equal(options.body, JSON.stringify(payload));
 });

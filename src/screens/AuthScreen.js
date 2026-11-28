@@ -14,9 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, useThemedStyles } from '../context/ThemeContext';
-import { DEFAULT_BASE_URL } from '../api/config';
+import { DEFAULT_BASE_URL, SERVER_PRESETS } from '../api/config';
 import AnimatedPressable from '../components/AnimatedPressable';
 import { motion } from '../theme/motion';
+
+const ANDROID_EMULATOR_PRESET = { label: 'Emulator (10.0.2.2)', url: 'http://10.0.2.2:3000' };
+const ALL_PRESETS = Platform.OS === 'android'
+  ? [...SERVER_PRESETS, ANDROID_EMULATOR_PRESET]
+  : SERVER_PRESETS;
 
 export default function AuthScreen() {
   const { colors } = useAppTheme();
@@ -101,7 +106,7 @@ export default function AuthScreen() {
                 style={styles.rowInput}
                 value={serverUrl}
                 onChangeText={setServerUrl}
-                placeholder="http://10.7.1.51:3000"
+                placeholder="http://your-server:3000"
                 placeholderTextColor={colors.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -111,59 +116,32 @@ export default function AuthScreen() {
           </Animated.View>
 
           {/* Quick preset chips */}
-          <View style={styles.presetSection}>
-            <Text style={styles.presetHeader}>Server presets</Text>
-            <View style={styles.presetRow}>
-              <AnimatedPressable
-                style={[
-                  styles.presetChip,
-                  serverUrl === 'http://10.7.1.51:3000' && styles.presetChipActive,
-                ]}
-                onPress={() => setServerUrl('http://10.7.1.51:3000')}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    serverUrl === 'http://10.7.1.51:3000' && styles.presetChipTextActive,
-                  ]}
-                >
-                  10.7.1.51:3000
-                </Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                style={[
-                  styles.presetChip,
-                  serverUrl === 'http://localhost:3000' && styles.presetChipActive,
-                ]}
-                onPress={() => setServerUrl('http://localhost:3000')}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    serverUrl === 'http://localhost:3000' && styles.presetChipTextActive,
-                  ]}
-                >
-                  localhost:3000
-                </Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                style={[
-                  styles.presetChip,
-                  serverUrl === 'http://10.0.2.2:3000' && styles.presetChipActive,
-                ]}
-                onPress={() => setServerUrl('http://10.0.2.2:3000')}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    serverUrl === 'http://10.0.2.2:3000' && styles.presetChipTextActive,
-                  ]}
-                >
-                  Emulator (10.0.2.2)
-                </Text>
-              </AnimatedPressable>
+          {ALL_PRESETS.length > 0 && (
+            <View style={styles.presetSection}>
+              <Text style={styles.presetHeader}>Server presets</Text>
+              <View style={styles.presetRow}>
+                {ALL_PRESETS.map((preset) => (
+                  <AnimatedPressable
+                    key={preset.url}
+                    style={[
+                      styles.presetChip,
+                      serverUrl === preset.url && styles.presetChipActive,
+                    ]}
+                    onPress={() => setServerUrl(preset.url)}
+                  >
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        serverUrl === preset.url && styles.presetChipTextActive,
+                      ]}
+                    >
+                      {preset.label}
+                    </Text>
+                  </AnimatedPressable>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
           {(localError || error) ? (
             <Animated.View entering={motion.enter} exiting={motion.exit} style={styles.errorBox} accessibilityLiveRegion="polite">
